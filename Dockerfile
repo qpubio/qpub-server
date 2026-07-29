@@ -1,14 +1,16 @@
 # QPub Server
-FROM golang:1.26-bookworm AS builder
+FROM golang:1.26-alpine AS builder
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/qpub-server ./cmd/server
 
-FROM gcr.io/distroless/static-debian12:nonroot
+# alpine avoids gcr.io/distroless pulls (often 403 from local networks)
+FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /out/qpub-server /app/qpub-server
-USER nonroot:nonroot
+RUN adduser -D -u 65532 nonroot && chown nonroot:nonroot /app/qpub-server
+USER nonroot
 EXPOSE 8081 8091 8111 8131
 ENTRYPOINT ["/app/qpub-server"]
