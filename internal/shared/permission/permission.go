@@ -43,13 +43,14 @@ func New(resources map[string][]Action) *Permission {
 
 // FromJSON creates a Permission instance from JSON bytes
 func FromJSON(data []byte) (*Permission, error) {
-	if len(data) == 0 {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
 		return New(nil), nil
 	}
 
 	// Try to unmarshal the new format first (direct map of resource to actions)
 	resourceMap := make(map[string][]Action)
-	if err := json.Unmarshal(data, &resourceMap); err == nil {
+	if err := json.Unmarshal(trimmed, &resourceMap); err == nil {
 		return New(resourceMap), nil
 	}
 

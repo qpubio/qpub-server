@@ -10,7 +10,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /out/qpub-server ./cmd/server
 FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /out/qpub-server /app/qpub-server
-RUN adduser -D -u 65532 nonroot && chown nonroot:nonroot /app/qpub-server
+RUN adduser -D -u 65532 nonroot \
+	&& mkdir -p /app/logs \
+	&& chown -R nonroot:nonroot /app
 USER nonroot
 EXPOSE 8081 8091 8111 8131
 ENTRYPOINT ["/app/qpub-server"]

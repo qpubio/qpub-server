@@ -18,6 +18,17 @@ const (
 	StatusInactive Status = "inactive"
 )
 
+// DefaultPermission is applied whenever permission is omitted or JSON null.
+var DefaultPermission = json.RawMessage(`{"*":["*"]}`)
+
+// EnsurePermission returns DefaultPermission when permission is empty or JSON null.
+func EnsurePermission(permission json.RawMessage) json.RawMessage {
+	if len(permission) == 0 || string(permission) == "null" {
+		return DefaultPermission
+	}
+	return permission
+}
+
 // APIKey represents an API key for a project
 type APIKey struct {
 	ID         id.Int  `gorm:"primarykey;autoincrement"`
@@ -37,6 +48,18 @@ type APIKey struct {
 // TableName returns the table name for the APIKey model
 func (APIKey) TableName() string {
 	return "api_keys"
+}
+
+// BeforeSave ensures permission is never stored empty/null.
+func (ak *APIKey) BeforeSave(tx *gorm.DB) error {
+	ak.Permission = EnsurePermission(ak.Permission)
+	return nil
+}
+
+// AfterFind normalizes empty/null permission in memory for auth and API responses.
+func (ak *APIKey) AfterFind(tx *gorm.DB) error {
+	ak.Permission = EnsurePermission(ak.Permission)
+	return nil
 }
 
 // AfterCreate is a hook that sets the public ID if it's empty
@@ -108,17 +131,12 @@ func Create(params CreateParams) (*APIKey, error) {
 		return nil, err
 	}
 
-	// Default permission
-	if params.Permission == nil {
-		params.Permission = json.RawMessage(`{"*":["*"]}`)
-	}
-
 	// Create API key instance
 	apiKey := &APIKey{
 		ProjectID:  params.ProjectID,
 		Name:       strings.TrimSpace(params.Name),
 		SecretKey:  secretKey,
-		Permission: params.Permission,
+		Permission: EnsurePermission(params.Permission),
 		Metadata:   params.Metadata,
 		Status:     params.Status,
 		ExpiresAt:  params.ExpiresAt,
@@ -141,7 +159,7 @@ func (ak *APIKey) Update(params UpdateParams) error {
 		ak.Name = strings.TrimSpace(params.Name)
 	}
 	if params.Permission != nil {
-		ak.Permission = params.Permission
+		ak.Permission = EnsurePermission(params.Permission)
 	}
 	if params.Metadata != nil {
 		ak.Metadata = params.Metadata
