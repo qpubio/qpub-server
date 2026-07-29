@@ -204,11 +204,11 @@ func (h *Handler) ListAPIKeys(c *gin.Context) {
 			"public_id":  k.PublicID,
 			"project_id": k.ProjectID,
 			"name":       k.Name,
+			"secret_key": k.SecretKey,
 			"permission": k.Permission,
 			"status":     k.Status,
 			"expires_at": k.ExpiresAt,
 			"created_at": k.CreatedAt,
-			// secret intentionally omitted on list
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"keys": out})
