@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: qpub
+      POSTGRES_USER: qpub
+      POSTGRES_PASSWORD: qpub
+    ports:
+      - "5432:5432"
+    volumes:
+      - qpub_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qpub -d qpub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+
+  qpub-server:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    env_file:
+      - .env.example
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      NATS_URL: nats://nats:4222
+    ports:
+      - "8081:8081"
+      - "8091:8091"
+      - "8111:8111"
+      - "8131:8131"
+
+volumes:
+  qpub_pg:
