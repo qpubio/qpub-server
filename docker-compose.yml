@@ -42,7 +42,7 @@ services:
       nats:
         condition: service_started
     env_file:
-      - .env.example
+      - .env
     environment:
       DB_HOST: postgres
       REDIS_HOST: redis

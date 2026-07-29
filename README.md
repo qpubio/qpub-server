@@ -8,7 +8,7 @@ Real-time messaging (pub/sub) and product job queues. Self-hostable over REST an
 - Product job queues (enqueue / pull / workers / webhooks)
 - Tenant isolation with rate limits
 - API key + client token auth
-- Control API for tenants, keys, and limits
+- Control API for tenants, keys, limits, and queue admin
 - NATS JetStream, Redis, Postgres (or CockroachDB)
 
 ## Quick start
@@ -18,14 +18,18 @@ cp .env.example .env
 docker compose up --build
 ```
 
+Compose uses **Postgres** (plus Redis and NATS). For CockroachDB outside this compose stack, set `DB_DRIVER=cockroach` (see `.env.example`).
+
 Ports (defaults):
 
-| Service   | Port |
-|-----------|------|
-| Admin     | 8081 |
-| Control   | 8091 |
-| REST      | 8111 |
-| WebSocket | 8131 |
+| Service              | Port | Notes                          |
+|----------------------|------|--------------------------------|
+| Admin                | 8081 | Health only                    |
+| Control              | 8091 | Provisioning API               |
+| REST                 | 8111 | Publish, queues, tokens        |
+| WebSocket            | 8131 | Real-time messaging            |
+
+Create a tenant (and an API key) via the Control API before calling REST or WebSocket.
 
 ## Local build
 
@@ -35,16 +39,23 @@ go build -o bin/qpub-server ./cmd/server
 ./bin/qpub-server
 ```
 
-Requires Postgres, Redis, and NATS (JetStream) reachable via `.env`.
+Requires Postgres (or Cockroach), Redis, and NATS (JetStream) reachable via `.env`.
 
 ## Control API
 
-Set `CONTROL_API_TOKEN` and call (Bearer or `X-Control-Token`):
+Authenticate with `CONTROL_API_TOKEN` (`Authorization: Bearer …` or `X-Control-Token`). If the token is empty, the control API is open (local dev only).
 
-- `POST /control/v1/tenants`
-- `PUT /control/v1/tenants/:id/limits`
-- `POST /control/v1/tenants/:id/keys`
-
-## License
-
-See repository license.
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/health` | Health (no auth) |
+| POST | `/control/v1/tenants` | Ensure tenant `{ "id": <int> }` |
+| GET | `/control/v1/tenants/:tenantID` | Get tenant |
+| DELETE | `/control/v1/tenants/:tenantID` | Delete tenant and its keys |
+| PUT | `/control/v1/tenants/:tenantID/limits` | Set rate limits |
+| GET | `/control/v1/tenants/:tenantID/limits` | Get rate limits |
+| POST | `/control/v1/tenants/:tenantID/keys` | Create API key |
+| GET | `/control/v1/tenants/:tenantID/keys` | List API keys |
+| DELETE | `/control/v1/tenants/:tenantID/keys/:keyID` | Delete API key |
+| GET | `/control/v1/tenants/:tenantID/queues` | List queues |
+| GET | `/control/v1/tenants/:tenantID/workers` | List workers |
+| GET | `/control/v1/metrics` | Metrics export hook |
