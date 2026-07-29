@@ -1,17 +1,15 @@
 # QPub Server
 
-Open-source **data-plane** for real-time messaging (pub/sub) and product queues.
-
-This binary does **not** include billing, accounts, dashboard auth, Stripe, or OAuth. Provision tenants, API keys, and rate limits via the control API (or a separate control plane).
+Real-time messaging (pub/sub) and product job queues. Self-hostable over REST and WebSocket.
 
 ## Features
 
 - Pub/Sub over WebSocket + REST publish
 - Product job queues (enqueue / pull / workers / webhooks)
-- Tenant isolation with pushed rate limits
+- Tenant isolation with rate limits
 - API key + client token auth
-- Control API for tenants / keys / limits
-- NATS JetStream, Redis, Postgres
+- Control API for tenants, keys, and limits
+- NATS JetStream, Redis, Postgres (or CockroachDB)
 
 ## Quick start
 
@@ -46,14 +44,6 @@ Set `CONTROL_API_TOKEN` and call (Bearer or `X-Control-Token`):
 - `POST /control/v1/tenants`
 - `PUT /control/v1/tenants/:id/limits`
 - `POST /control/v1/tenants/:id/keys`
-
-## OSS boundary
-
-```bash
-./scripts/check-oss-boundary.sh
-```
-
-Fails if `billing`, `domain/account`, `domain/user`, `stripe`, or `oauth` appear under `internal/`.
 
 ## License
 

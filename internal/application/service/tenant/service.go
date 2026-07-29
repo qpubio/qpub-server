@@ -137,7 +137,7 @@ func (s *Service) GetLimits(tenantID id.Int) (tenant.Limits, error) {
 		}
 	}
 
-	// Default: unlimited until control plane pushes a snapshot.
+	// Default: unlimited until limits are set via the control API.
 	return tenant.Limits{
 		TenantID:          tenantID,
 		InboundPerSecond:  tenant.Unlimited,

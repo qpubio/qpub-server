@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SetupRoutes mounts the control-plane API used to provision tenants, keys, limits, and queue admin.
+// SetupRoutes mounts the control API used to provision tenants, keys, limits, and queue admin.
 func SetupRoutes(router *gin.Engine, cfg *config.Config, h *controlHandler.Handler) {
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "healthy"})

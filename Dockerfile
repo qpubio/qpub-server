@@ -1,4 +1,4 @@
-# QPub Server — open-source messaging & queue data plane
+# QPub Server
 FROM golang:1.26-bookworm AS builder
 WORKDIR /src
 COPY go.mod go.sum ./

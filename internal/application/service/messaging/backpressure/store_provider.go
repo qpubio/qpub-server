@@ -7,7 +7,7 @@ import (
 )
 
 // StoreLimitsProvider resolves message rates from the tenant limits store
-// (populated by the control plane via PUT /control/v1/tenants/:id/limits).
+// (set via PUT /control/v1/tenants/:id/limits).
 type StoreLimitsProvider struct {
 	tenantService tenant.Service
 }

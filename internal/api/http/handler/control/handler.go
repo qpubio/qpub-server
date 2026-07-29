@@ -16,7 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Handler serves the qpub-server control plane API used by qpub-backend (and self-host ops).
+// Handler serves the control API for provisioning tenants, keys, limits, and queue admin.
 type Handler struct {
 	tenantService tenant.Service
 	apiKeyService apiKeyDomain.Service
@@ -266,8 +266,7 @@ func (h *Handler) ListWorkers(c *gin.Context) {
 }
 
 func (h *Handler) MetricsExport(c *gin.Context) {
-	// Placeholder: metering export contract for backend rollup.
-	// Telemetry continues to land in Redis; this endpoint reserves the control-plane shape.
+	// Placeholder: structured metrics export TBD; telemetry today lives in Redis snapshots.
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "ok",
 		"message": "metrics export available via redis telemetry snapshots; structured export TBD",

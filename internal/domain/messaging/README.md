@@ -1,8 +1,8 @@
 # Messaging System
 
-Domain layer for real-time messaging. See [docs/messaging/](../../../docs/messaging/README.md) for user-facing documentation.
+Domain layer for real-time messaging.
 
-## Architecture (current)
+## Architecture
 
 ```
 Transport (WS/REST)
@@ -32,7 +32,7 @@ Event bus ← lifecycle events (connect, subscribe, channel empty)
 
 ## Statistics
 
-Message stats are **not** updated via the event bus or a stats coordinator. They flow through the telemetry plane:
+Message stats flow through the telemetry plane (not the event bus):
 
 - Inbound accepted → `msg:in` / `bw:in`
 - Outbound delivered → `msg:out` / `bw:out`
@@ -40,30 +40,14 @@ Message stats are **not** updated via the event bus or a stats coordinator. They
 
 Gauges (`conn`, `chan`, `sub`) come from repository counts at snapshot time.
 
-See [statistics.md](../../../docs/messaging/statistics.md) and [runtime.md](../../../docs/messaging/runtime.md).
-
-## Contributor guardrails
-
-Do not reintroduce stats via the event bus, stats coordinator, or old Redis keys (`msg:sent`, `msg:rcv`). Do not add routing logic to the WebSocket handler. Full list: [runtime.md](../../../docs/messaging/runtime.md#contributor-guardrails).
-
-## Event bus
-
-Used for lifecycle coordination (channel empty → delayed delete, connection events). Message publish/delivery does not emit stats events.
-
-**Event types:** connection, client, channel, subscription lifecycle only.
-
-## Channel lifecycle
-
-`channel/lifecycle.Manager` listens for `EventChannelEmpty` and deletes channels after the configured grace period (default 30s).
-
 ## Related application services
 
-Located under `internal/application/service/messaging/`:
+Under `internal/application/service/messaging/`:
 
 - `router/` — router implementation
 - `session/` — session runtime
 - `egress/` — outbound pipeline
 - `telemetry/` — event subscriber + snapshot
-- `backpressure/` — billing plan rate limits
+- `backpressure/` — tenant rate limits
 
 Wiring: `internal/bootstrap/modules/messaging_module.go`
