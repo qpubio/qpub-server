@@ -1,11 +1,11 @@
 # QPub Server
 
-Real-time messaging (pub/sub) and product job queues. Self-hostable over REST and WebSocket.
+Real-time messaging (pub/sub) and job queues. Self-hostable over REST and WebSocket.
 
 ## Features
 
 - Pub/Sub over WebSocket + REST publish
-- Product job queues (enqueue / pull / workers / webhooks)
+- Job queues (enqueue / pull / workers / webhooks)
 - Tenant isolation with rate limits
 - API key + client token auth
 - Control API for tenants, keys, limits, and queue admin
