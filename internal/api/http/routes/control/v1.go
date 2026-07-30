@@ -35,6 +35,12 @@ func SetupRoutes(router *gin.Engine, cfg *config.Config, h *controlHandler.Handl
 		v1.DELETE("/tenants/:tenantID/keys/:keyID", h.DeleteAPIKey)
 
 		v1.GET("/tenants/:tenantID/queues", h.ListQueues)
+		v1.GET("/tenants/:tenantID/queues/:queueName", h.GetQueue)
+		v1.GET("/tenants/:tenantID/queues/:queueName/jobs", h.ListJobs)
+		v1.GET("/tenants/:tenantID/queues/:queueName/jobs/counts", h.GetJobCounts)
+		v1.GET("/tenants/:tenantID/queues/:queueName/jobs/:jobId", h.GetJob)
+		v1.DELETE("/tenants/:tenantID/queues/:queueName/jobs/:jobId", h.CancelJob)
+		v1.POST("/tenants/:tenantID/queues/:queueName/jobs/:jobId/retry", h.RetryJob)
 		v1.GET("/tenants/:tenantID/workers", h.ListWorkers)
 
 		v1.GET("/metrics", h.MetricsExport)

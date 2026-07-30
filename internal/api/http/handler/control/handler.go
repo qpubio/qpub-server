@@ -2,13 +2,17 @@ package control
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/qpubio/qpub-server/internal/api/response"
+	"github.com/qpubio/qpub-server/internal/application/dto"
 	apiKeyDomain "github.com/qpubio/qpub-server/internal/domain/apikey"
+	domainJob "github.com/qpubio/qpub-server/internal/domain/queue/job"
 	domainQueue "github.com/qpubio/qpub-server/internal/domain/queue/queue"
+	domainRouter "github.com/qpubio/qpub-server/internal/domain/queue/router"
 	domainWorker "github.com/qpubio/qpub-server/internal/domain/queue/worker"
 	"github.com/qpubio/qpub-server/internal/domain/tenant"
 	"github.com/qpubio/qpub-server/internal/shared/id"
@@ -21,6 +25,8 @@ type Handler struct {
 	tenantService tenant.Service
 	apiKeyService apiKeyDomain.Service
 	queueService  domainQueue.Service
+	jobService    domainJob.Service
+	router        domainRouter.Service
 	workerService domainWorker.Service
 }
 
@@ -28,12 +34,16 @@ func NewHandler(
 	tenantService tenant.Service,
 	apiKeyService apiKeyDomain.Service,
 	queueService domainQueue.Service,
+	jobService domainJob.Service,
+	router domainRouter.Service,
 	workerService domainWorker.Service,
 ) *Handler {
 	return &Handler{
 		tenantService: tenantService,
 		apiKeyService: apiKeyService,
 		queueService:  queueService,
+		jobService:    jobService,
+		router:        router,
 		workerService: workerService,
 	}
 }
@@ -248,7 +258,16 @@ func (h *Handler) ListQueues(c *gin.Context) {
 		response.InternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"queues": queues})
+	out := make([]dto.QueueSummaryDTO, 0, len(queues))
+	for _, q := range queues {
+		counts, err := h.jobService.CountByStatus(tenantID, q.Name)
+		if err != nil {
+			response.InternalError(c, err.Error())
+			return
+		}
+		out = append(out, dto.ToQueueSummaryDTO(q, counts))
+	}
+	response.OK(c, dto.QueuesResponse{Queues: out})
 }
 
 func (h *Handler) ListWorkers(c *gin.Context) {
@@ -262,7 +281,142 @@ func (h *Handler) ListWorkers(c *gin.Context) {
 		response.InternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"workers": workers})
+	response.OK(c, dto.WorkersResponse{Workers: dto.ToWorkersDTO(workers)})
+}
+
+func (h *Handler) GetQueue(c *gin.Context) {
+	tenantID, err := parseTenantID(c)
+	if err != nil {
+		response.BadRequest(c, "invalid tenant id")
+		return
+	}
+	queueName := c.Param("queueName")
+	q, err := h.queueService.Get(tenantID, queueName)
+	if err != nil {
+		if errors.Is(err, domainQueue.ErrNotFound) {
+			response.NotFound(c, "queue not found")
+			return
+		}
+		response.InternalError(c, err.Error())
+		return
+	}
+	counts, err := h.jobService.CountByStatus(tenantID, queueName)
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+	response.OK(c, dto.ToQueueSummaryDTO(q, counts))
+}
+
+func (h *Handler) ListJobs(c *gin.Context) {
+	tenantID, err := parseTenantID(c)
+	if err != nil {
+		response.BadRequest(c, "invalid tenant id")
+		return
+	}
+	queueName := c.Param("queueName")
+	filter := domainJob.ListFilter{
+		ProjectID: tenantID,
+		QueueName: queueName,
+		Status:    domainJob.Status(c.Query("status")),
+	}
+	if v := c.Query("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			response.BadRequest(c, "invalid limit")
+			return
+		}
+		filter.Limit = n
+	}
+	if v := c.Query("offset"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			response.BadRequest(c, "invalid offset")
+			return
+		}
+		filter.Offset = n
+	}
+	jobs, err := h.jobService.List(filter)
+	if err != nil {
+		response.InternalError(c, "Failed to list jobs")
+		return
+	}
+	response.OK(c, dto.JobsResponse{Jobs: dto.ToJobsDTO(jobs)})
+}
+
+func (h *Handler) GetJobCounts(c *gin.Context) {
+	tenantID, err := parseTenantID(c)
+	if err != nil {
+		response.BadRequest(c, "invalid tenant id")
+		return
+	}
+	queueName := c.Param("queueName")
+	counts, err := h.jobService.CountByStatus(tenantID, queueName)
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+	response.OK(c, dto.ToJobCountsDTO(counts))
+}
+
+func (h *Handler) GetJob(c *gin.Context) {
+	tenantID, err := parseTenantID(c)
+	if err != nil {
+		response.BadRequest(c, "invalid tenant id")
+		return
+	}
+	queueName := c.Param("queueName")
+	jobID := id.ULID(c.Param("jobId"))
+	jobEntity, err := h.jobService.Get(tenantID, queueName, jobID)
+	if err != nil {
+		if errors.Is(err, domainJob.ErrNotFound) {
+			response.NotFound(c, "Job not found")
+			return
+		}
+		response.InternalError(c, err.Error())
+		return
+	}
+	response.OK(c, dto.ToJobDTO(jobEntity))
+}
+
+func (h *Handler) CancelJob(c *gin.Context) {
+	tenantID, err := parseTenantID(c)
+	if err != nil {
+		response.BadRequest(c, "invalid tenant id")
+		return
+	}
+	queueName := c.Param("queueName")
+	jobID := id.ULID(c.Param("jobId"))
+	_, jobEntity, err := h.router.Cancel(c.Request.Context(), tenantID, queueName, jobID)
+	if err != nil {
+		if errors.Is(err, domainJob.ErrNotFound) {
+			response.NotFound(c, "Job not found")
+			return
+		}
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.OK(c, dto.ToJobDTO(*jobEntity))
+}
+
+func (h *Handler) RetryJob(c *gin.Context) {
+	tenantID, err := parseTenantID(c)
+	if err != nil {
+		response.BadRequest(c, "invalid tenant id")
+		return
+	}
+	queueName := c.Param("queueName")
+	jobID := id.ULID(c.Param("jobId"))
+	jobEntity, err := h.jobService.Retry(tenantID, queueName, jobID)
+	if err != nil {
+		if errors.Is(err, domainJob.ErrNotFound) {
+			response.NotFound(c, "Job not found")
+			return
+		}
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.OK(c, dto.ToJobDTO(jobEntity))
 }
 
 func (h *Handler) MetricsExport(c *gin.Context) {

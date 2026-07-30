@@ -122,6 +122,8 @@ func (a *App) setupHandlers() error {
 		tenantService,
 		apiKeyService,
 		queueService,
+		queueJobService,
+		queueRouter,
 		queueWorkerService,
 	)
 

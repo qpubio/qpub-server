@@ -8,9 +8,10 @@ import (
 	"github.com/qpubio/qpub-server/internal/shared/id"
 )
 
-// WorkerDTO is the REST representation of a registered external worker.
+// WorkerDTO is the REST/control representation of a registered external worker.
 type WorkerDTO struct {
 	ID         id.ULID   `json:"id"`
+	ProjectID  id.Int    `json:"project_id"`
 	Name       string    `json:"name"`
 	Queues     []string  `json:"queues"`
 	LastSeenAt time.Time `json:"last_seen_at"`
@@ -21,6 +22,7 @@ type WorkerDTO struct {
 func ToWorkerDTO(w domainWorker.Worker) WorkerDTO {
 	return WorkerDTO{
 		ID:         w.ID,
+		ProjectID:  w.ProjectID,
 		Name:       w.Name,
 		Queues:     decodeWorkerQueues(w.Queues),
 		LastSeenAt: w.LastSeenAt,

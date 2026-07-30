@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"time"
 
+	domainJob "github.com/qpubio/qpub-server/internal/domain/queue/job"
 	domainQueue "github.com/qpubio/qpub-server/internal/domain/queue/queue"
 )
 
-// QueueDTO is the REST representation of a queue config.
+// QueueDTO is the REST/control representation of a queue config (snake_case JSON).
 type QueueDTO struct {
 	Name              string          `json:"name"`
 	ExecutionProfile  string          `json:"execution_profile"`
@@ -38,7 +39,7 @@ func ToQueueDTO(q domainQueue.Queue) QueueDTO {
 	}
 }
 
-// QueueSummaryDTO is a queue config with per-status job counts (dashboard).
+// QueueSummaryDTO is a queue config with per-status job counts (dashboard/control).
 type QueueSummaryDTO struct {
 	QueueDTO
 	Counts JobCountsDTO `json:"counts"`
@@ -55,4 +56,11 @@ func ToQueuesDTO(queues []domainQueue.Queue) []QueueDTO {
 		out[i] = ToQueueDTO(q)
 	}
 	return out
+}
+
+func ToQueueSummaryDTO(q domainQueue.Queue, counts map[domainJob.Status]int64) QueueSummaryDTO {
+	return QueueSummaryDTO{
+		QueueDTO: ToQueueDTO(q),
+		Counts:   ToJobCountsDTO(counts),
+	}
 }
