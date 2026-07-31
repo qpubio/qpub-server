@@ -10,7 +10,7 @@ import (
 
 // Worker represents a registered external worker.
 type Worker struct {
-	ID          id.ULID `gorm:"type:char(26);primarykey"`
+	ID          id.ULID `gorm:"type:char(22);primarykey"`
 	ProjectID   id.Int  `gorm:"not null;index"`
 	Name        string  `gorm:"not null"`
 	Queues      string  `gorm:"type:text"`

@@ -23,7 +23,7 @@ const (
 
 // Job represents a queued work item.
 type Job struct {
-	ID             id.ULID         `gorm:"type:char(26);primarykey"`
+	ID             id.ULID         `gorm:"type:char(22);primarykey"`
 	ProjectID      id.Int          `gorm:"not null;index:idx_job_project_queue_status"`
 	QueueName      string          `gorm:"not null;index:idx_job_project_queue_status"`
 	Status         Status          `gorm:"not null;index:idx_job_project_queue_status;index:idx_job_schedule"`
