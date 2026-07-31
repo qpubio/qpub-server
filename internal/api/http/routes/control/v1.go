@@ -32,6 +32,7 @@ func SetupRoutes(router *gin.Engine, cfg *config.Config, h *controlHandler.Handl
 
 		v1.POST("/tenants/:tenantID/keys", h.CreateAPIKey)
 		v1.GET("/tenants/:tenantID/keys", h.ListAPIKeys)
+		v1.PUT("/tenants/:tenantID/keys/:keyID", h.UpdateAPIKey)
 		v1.DELETE("/tenants/:tenantID/keys/:keyID", h.DeleteAPIKey)
 
 		v1.GET("/tenants/:tenantID/queues", h.ListQueues)

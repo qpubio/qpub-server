@@ -65,9 +65,10 @@ func (v *Validator) ValidateUpdate(params UpdateParams) error {
 	v.MinLength(params.Name, 2, "name")
 	v.MaxLength(params.Name, 100, "name")
 
-	// Permission validation
-	v.Required(params.Permission, "permission")
-	v.JSON(params.Permission, "permission")
+	// Permission validation (optional on update — nil keeps existing)
+	if params.Permission != nil {
+		v.JSON(params.Permission, "permission")
+	}
 
 	// Metadata validation
 	if params.Metadata != nil {

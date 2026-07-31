@@ -64,6 +64,13 @@ type createKeyRequest struct {
 	ExpiresAt  *time.Time      `json:"expires_at"`
 }
 
+type updateKeyRequest struct {
+	Name       string          `json:"name" binding:"required"`
+	Permission json.RawMessage `json:"permission"` // optional; omitted keeps existing
+	Status     string          `json:"status"`
+	ExpiresAt  *time.Time      `json:"expires_at"`
+}
+
 func (h *Handler) CreateTenant(c *gin.Context) {
 	var req createTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -222,6 +229,61 @@ func (h *Handler) ListAPIKeys(c *gin.Context) {
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"keys": out})
+}
+
+func (h *Handler) UpdateAPIKey(c *gin.Context) {
+	tenantID, err := parseTenantID(c)
+	if err != nil {
+		response.BadRequest(c, "invalid tenant id")
+		return
+	}
+	keyID, err := strconv.Atoi(c.Param("keyID"))
+	if err != nil {
+		response.BadRequest(c, "invalid key id")
+		return
+	}
+	existing, err := h.apiKeyService.Get(id.Int(keyID))
+	if err != nil || existing.ProjectID != tenantID {
+		response.NotFound(c, "api key not found")
+		return
+	}
+	var req updateKeyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	status := apiKeyDomain.Status(req.Status)
+	if status == "" {
+		status = existing.Status
+	} else if status != apiKeyDomain.StatusActive && status != apiKeyDomain.StatusInactive {
+		response.BadRequest(c, "invalid status")
+		return
+	}
+	permission := req.Permission
+	if len(permission) == 0 || string(permission) == "null" {
+		permission = existing.Permission
+	}
+	key, err := h.apiKeyService.Update(existing.ID, apiKeyDomain.UpdateParams{
+		Name:       req.Name,
+		Permission: permission,
+		Status:     status,
+		ExpiresAt:  req.ExpiresAt,
+	})
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"id":         key.ID,
+		"public_id":  key.PublicID,
+		"project_id": key.ProjectID,
+		"name":       key.Name,
+		"secret_key": key.SecretKey,
+		"permission": apiKeyDomain.EnsurePermission(key.Permission),
+		"status":     key.Status,
+		"expires_at": key.ExpiresAt,
+		"created_at": key.CreatedAt,
+	})
 }
 
 func (h *Handler) DeleteAPIKey(c *gin.Context) {
