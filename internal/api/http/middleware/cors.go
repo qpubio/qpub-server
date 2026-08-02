@@ -1,8 +1,9 @@
 package middleware
 
 import (
-	"github.com/qpubio/qpub-server/internal/config/infrastructure"
 	"strings"
+
+	"github.com/qpubio/qpub-server/internal/config/infrastructure"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,12 +17,8 @@ func CORS(routeType string, corsConfig *infrastructure.CORS) gin.HandlerFunc {
 			allowedOrigins = corsConfig.Admin
 		case "control":
 			allowedOrigins = corsConfig.Control
-		case "dashboard":
-			allowedOrigins = corsConfig.Dashboard
 		case "rest":
 			allowedOrigins = corsConfig.Rest
-		case "webhook":
-			allowedOrigins = corsConfig.Webhook
 		case "websocket":
 			allowedOrigins = corsConfig.WebSocket
 		default:
@@ -33,7 +30,7 @@ func CORS(routeType string, corsConfig *infrastructure.CORS) gin.HandlerFunc {
 		// Determine if this route type requires credentials
 		credentialsRequired := false
 		switch routeType {
-		case "admin", "control", "dashboard":
+		case "admin", "control":
 			credentialsRequired = true
 		default:
 			credentialsRequired = false
@@ -75,18 +72,10 @@ func CORS(routeType string, corsConfig *infrastructure.CORS) gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Credentials", "true")
 		}
 
-		// Additional headers for dashboard
-		if routeType == "dashboard" {
+		// Control API accepts Authorization Bearer or X-Control-Token
+		if routeType == "control" {
 			currentAllowHeaders := c.Writer.Header().Get("Access-Control-Allow-Headers")
-			// Include both canonical and various case formats of X-Account-ID to ensure compatibility
-			c.Header("Access-Control-Allow-Headers", currentAllowHeaders+", X-Account-ID, X-Account-Id, x-account-id")
-		}
-
-		// Additional headers for REST API
-		if routeType == "rest" {
-			currentAllowHeaders := c.Writer.Header().Get("Access-Control-Allow-Headers")
-			// Include both canonical and various case formats of x-alias to ensure compatibility
-			c.Header("Access-Control-Allow-Headers", currentAllowHeaders+", X-Alias, x-alias")
+			c.Header("Access-Control-Allow-Headers", currentAllowHeaders+", X-Control-Token")
 		}
 
 		// Additional headers specifically for WebSocket

@@ -9,9 +9,7 @@ import (
 type CORS struct {
 	Admin     string `env:"CORS_ADMIN_ORIGINS" envDefault:"*"`
 	Control   string `env:"CORS_CONTROL_ORIGINS" envDefault:"*"`
-	Dashboard string `env:"CORS_DASHBOARD_ORIGINS" envDefault:"*"`
 	Rest      string `env:"CORS_REST_ORIGINS" envDefault:"*"`
-	Webhook   string `env:"CORS_WEBHOOK_ORIGINS" envDefault:"*"`
 	WebSocket string `env:"CORS_WEBSOCKET_ORIGINS" envDefault:"*"`
 }
 
@@ -37,16 +35,8 @@ func (c *CORS) Validate() error {
 		return fmt.Errorf("control cors origins is required")
 	}
 
-	if c.Dashboard == "" {
-		return fmt.Errorf("dashboard cors origins is required")
-	}
-
 	if c.Rest == "" {
 		return fmt.Errorf("rest cors origins is required")
-	}
-
-	if c.Webhook == "" {
-		return fmt.Errorf("webhook cors origins is required")
 	}
 
 	if c.WebSocket == "" {

@@ -39,7 +39,7 @@ func ToQueueDTO(q domainQueue.Queue) QueueDTO {
 	}
 }
 
-// QueueSummaryDTO is a queue config with per-status job counts (dashboard/control).
+// QueueSummaryDTO is a queue config with per-status job counts (cloud/control).
 type QueueSummaryDTO struct {
 	QueueDTO
 	Counts JobCountsDTO `json:"counts"`
