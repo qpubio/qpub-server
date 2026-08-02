@@ -11,7 +11,6 @@ type TokenType string
 
 // TokenType constants
 const (
-	TokenTypeUser   TokenType = "user"
 	TokenTypeAPIKey TokenType = "api_key"
 )
 

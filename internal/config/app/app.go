@@ -11,12 +11,6 @@ type App struct {
 	Env   string `env:"APP_ENV" envDefault:"production"`
 	Debug bool   `env:"APP_DEBUG" envDefault:"false"`
 
-	Features struct {
-		DebugEndpoints  bool `env:"FEATURE_DEBUG_ENDPOINTS" envDefault:"false"`
-		DetailedLogging bool `env:"FEATURE_DETAILED_LOGGING" envDefault:"false"`
-		TestMode        bool `env:"FEATURE_TEST_MODE" envDefault:"false"`
-	}
-
 	// ControlAPIToken authenticates the control API used to provision tenants/keys/limits.
 	ControlAPIToken string `env:"CONTROL_API_TOKEN" envDefault:""`
 }

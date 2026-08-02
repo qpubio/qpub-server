@@ -25,7 +25,6 @@ func (a *App) setupContainer() error {
 	cont.RegisterInstance(reflect.TypeOf((*nats.Service)(nil)).Elem(), a.nats)
 	cont.RegisterInstance(reflect.TypeOf(a.instanceID), a.instanceID)
 	cont.RegisterInstance(reflect.TypeOf(a.apikeyParser), a.apikeyParser)
-	cont.RegisterInstance(reflect.TypeOf(a.period), a.period)
 
 	a.container = cont
 	a.cleanup.Register(func() error {

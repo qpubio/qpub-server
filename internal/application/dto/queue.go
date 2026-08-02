@@ -39,7 +39,7 @@ func ToQueueDTO(q domainQueue.Queue) QueueDTO {
 	}
 }
 
-// QueueSummaryDTO is a queue config with per-status job counts (cloud/control).
+// QueueSummaryDTO is a queue config with per-status job counts (control API).
 type QueueSummaryDTO struct {
 	QueueDTO
 	Counts JobCountsDTO `json:"counts"`
@@ -48,14 +48,6 @@ type QueueSummaryDTO struct {
 // QueuesResponse wraps a list of queues.
 type QueuesResponse struct {
 	Queues []QueueSummaryDTO `json:"queues"`
-}
-
-func ToQueuesDTO(queues []domainQueue.Queue) []QueueDTO {
-	out := make([]QueueDTO, len(queues))
-	for i, q := range queues {
-		out[i] = ToQueueDTO(q)
-	}
-	return out
 }
 
 func ToQueueSummaryDTO(q domainQueue.Queue, counts map[domainJob.Status]int64) QueueSummaryDTO {

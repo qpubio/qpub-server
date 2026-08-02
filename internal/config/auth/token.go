@@ -8,14 +8,6 @@ import (
 )
 
 type Token struct {
-	EmailVerification struct {
-		Duration time.Duration `env:"TOKEN_EMAIL_VERIFICATION_DURATION" envDefault:"48h"` // 2 days
-	}
-
-	User struct {
-		Duration time.Duration `env:"TOKEN_USER_DURATION" envDefault:"168h"` // 7 days
-	}
-
 	APIKey struct {
 		Duration    time.Duration `env:"TOKEN_API_KEY_DURATION" envDefault:"1h"`      // 1 hour
 		MaxDuration time.Duration `env:"TOKEN_API_KEY_MAX_DURATION" envDefault:"24h"` // 1 day
@@ -40,10 +32,6 @@ func NewToken() (*Token, error) {
 }
 
 func (c *Token) Validate() error {
-	if err := c.validateTokenDuration("user", c.User.Duration); err != nil {
-		return err
-	}
-
 	if err := c.validateTokenDuration("api_key", c.APIKey.Duration); err != nil {
 		return err
 	}

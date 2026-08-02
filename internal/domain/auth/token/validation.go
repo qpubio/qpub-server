@@ -32,7 +32,6 @@ func (v *Validator) ValidateCreateRevoke(params CreateRevokeParams) error {
 
 	// OwnerType validation
 	v.In(string(params.OwnerType), []string{
-		string(TokenTypeUser),
 		string(TokenTypeAPIKey),
 	}, "ownerType")
 

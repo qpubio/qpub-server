@@ -15,7 +15,6 @@ import (
 	"github.com/qpubio/qpub-server/internal/infrastructure/redis"
 	"github.com/qpubio/qpub-server/internal/shared/apikey"
 	"github.com/qpubio/qpub-server/internal/shared/id"
-	"github.com/qpubio/qpub-server/internal/shared/period"
 	"github.com/qpubio/qpub-server/internal/shared/permission"
 	"github.com/qpubio/qpub-server/internal/shared/token"
 	"github.com/qpubio/qpub-server/internal/shared/type/log"
@@ -33,7 +32,6 @@ type App struct {
 	instanceID   id.ULID
 	apikeyParser *apikey.Parser
 	token        *token.Service
-	period       *period.Service
 	permission   permission.Service
 
 	db    *gorm.DB
@@ -110,9 +108,6 @@ func (a *App) Start() error {
 	if err := a.setupToken(); err != nil {
 		return err
 	}
-	if err := a.setupPeriod(); err != nil {
-		return err
-	}
 	if err := a.setupPermission(); err != nil {
 		return err
 	}
@@ -152,14 +147,14 @@ func (a *App) Shutdown() error {
 	return nil
 }
 
-func (a *App) DB() *gorm.DB                 { return a.db }
-func (a *App) Redis() redis.Service         { return a.redis }
-func (a *App) NATS() nats.Service           { return a.nats }
-func (a *App) Logger() logger.Service       { return a.logger }
-func (a *App) Config() *config.Config       { return a.config }
-func (a *App) Context() context.Context     { return a.ctx }
+func (a *App) DB() *gorm.DB                    { return a.db }
+func (a *App) Redis() redis.Service            { return a.redis }
+func (a *App) NATS() nats.Service              { return a.nats }
+func (a *App) Logger() logger.Service          { return a.logger }
+func (a *App) Config() *config.Config          { return a.config }
+func (a *App) Context() context.Context        { return a.ctx }
 func (a *App) Container() *container.Container { return a.container }
-func (a *App) InstanceID() id.ULID          { return a.instanceID }
+func (a *App) InstanceID() id.ULID             { return a.instanceID }
 
 func (a *App) GetService(serviceType reflect.Type) (interface{}, error) {
 	return a.container.Get(serviceType)
