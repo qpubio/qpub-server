@@ -7,7 +7,10 @@ import (
 	"github.com/qpubio/qpub-server/internal/bootstrap/container"
 	"github.com/qpubio/qpub-server/internal/domain/tenant"
 	"github.com/qpubio/qpub-server/internal/infrastructure/logger"
+	tenantRepo "github.com/qpubio/qpub-server/internal/infrastructure/repository/tenant"
 	"github.com/qpubio/qpub-server/internal/shared/type/log"
+
+	"gorm.io/gorm"
 )
 
 type TenantModule struct {
@@ -21,13 +24,27 @@ func NewTenantModule() *TenantModule {
 }
 
 func (m *TenantModule) Register(c *container.Container) error {
+	c.Register(
+		reflect.TypeOf((*tenant.Repository)(nil)).Elem(),
+		func(c *container.Container) (interface{}, error) {
+			db, err := container.GetTyped[*gorm.DB](c)
+			if err != nil {
+				return nil, err
+			}
+			return tenantRepo.NewRepository(db), nil
+		},
+	)
+
 	c.Register(reflect.TypeOf((*tenant.Service)(nil)).Elem(), func(c *container.Container) (interface{}, error) {
 		logger, err := container.GetTyped[logger.Service](c)
 		if err != nil {
 			return nil, err
 		}
-		// In-memory store; optional DB repo can be added later without changing the port.
-		return tenantApp.NewService(logger, nil), nil
+		repo, err := container.GetTyped[tenant.Repository](c)
+		if err != nil {
+			return nil, err
+		}
+		return tenantApp.NewService(logger, repo), nil
 	})
 
 	if logger, err := container.GetTyped[logger.Service](c); err == nil {
