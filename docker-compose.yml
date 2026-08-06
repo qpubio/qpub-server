@@ -48,7 +48,6 @@ services:
       REDIS_HOST: redis
       NATS_URL: nats://nats:4222
     ports:
-      - "8081:8081"
       - "8091:8091"
       - "8111:8111"
       - "8131:8131"

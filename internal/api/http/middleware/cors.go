@@ -13,8 +13,6 @@ func CORS(routeType string, corsConfig *infrastructure.CORS) gin.HandlerFunc {
 		// Get allowed origins from configuration based on route type
 		var allowedOrigins string
 		switch routeType {
-		case "admin":
-			allowedOrigins = corsConfig.Admin
 		case "control":
 			allowedOrigins = corsConfig.Control
 		case "rest":
@@ -30,7 +28,7 @@ func CORS(routeType string, corsConfig *infrastructure.CORS) gin.HandlerFunc {
 		// Determine if this route type requires credentials
 		credentialsRequired := false
 		switch routeType {
-		case "admin", "control":
+		case "control":
 			credentialsRequired = true
 		default:
 			credentialsRequired = false

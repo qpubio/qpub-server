@@ -24,7 +24,6 @@ Ports (defaults):
 
 | Service              | Port | Notes                          |
 |----------------------|------|--------------------------------|
-| Admin                | 8081 | Health only                    |
 | Control              | 8091 | Provisioning API               |
 | REST                 | 8111 | Publish, queues, tokens        |
 | WebSocket            | 8131 | Real-time messaging            |

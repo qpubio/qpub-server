@@ -7,7 +7,6 @@ import (
 )
 
 type CORS struct {
-	Admin     string `env:"CORS_ADMIN_ORIGINS" envDefault:"*"`
 	Control   string `env:"CORS_CONTROL_ORIGINS" envDefault:"*"`
 	Rest      string `env:"CORS_REST_ORIGINS" envDefault:"*"`
 	WebSocket string `env:"CORS_WEBSOCKET_ORIGINS" envDefault:"*"`
@@ -27,10 +26,6 @@ func NewCORS() (*CORS, error) {
 }
 
 func (c *CORS) Validate() error {
-	if c.Admin == "" {
-		return fmt.Errorf("admin cors origins is required")
-	}
-
 	if c.Control == "" {
 		return fmt.Errorf("control cors origins is required")
 	}

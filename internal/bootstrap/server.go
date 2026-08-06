@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/qpubio/qpub-server/internal/api/http/middleware"
-	"github.com/qpubio/qpub-server/internal/api/http/routes/admin"
 	"github.com/qpubio/qpub-server/internal/api/http/routes/control"
 	"github.com/qpubio/qpub-server/internal/api/http/routes/rest"
 	"github.com/qpubio/qpub-server/internal/api/http/routes/websocket"
@@ -36,17 +35,14 @@ func (a *App) setupHTTPServers() error {
 	controlRouter := gin.Default()
 	restRouter := gin.Default()
 	websocketRouter := gin.Default()
-	adminRouter := gin.Default()
 
 	controlRouter.Use(middleware.CORS("control", &a.config.Infrastructure.CORS))
 	restRouter.Use(middleware.CORS("rest", &a.config.Infrastructure.CORS))
 	websocketRouter.Use(middleware.CORS("websocket", &a.config.Infrastructure.CORS))
-	adminRouter.Use(middleware.CORS("admin", &a.config.Infrastructure.CORS))
 
 	controlRouter.Use(middleware.Logger(a.logger))
 	restRouter.Use(middleware.Logger(a.logger))
 	websocketRouter.Use(middleware.Logger(a.logger))
-	adminRouter.Use(middleware.Logger(a.logger))
 
 	control.SetupRoutes(controlRouter, a.config, a.handlers.ControlHandler)
 
@@ -73,12 +69,9 @@ func (a *App) setupHTTPServers() error {
 		a.handlers.WebsocketHandler,
 	)
 
-	admin.SetupRoutes(adminRouter, a.container, a.logger)
-
 	go a.startServer(controlRouter, a.config.Infrastructure.Server.ControlPort, "control")
 	go a.startServer(restRouter, a.config.Infrastructure.Server.RestPort, "rest")
 	go a.startServer(websocketRouter, a.config.Infrastructure.Server.WebSocketPort, "websocket")
-	go a.startServer(adminRouter, a.config.Infrastructure.Server.AdminPort, "admin")
 
 	a.logger.Info(log.App, "HTTP servers initialized successfully")
 	return nil

@@ -14,5 +14,5 @@ RUN adduser -D -u 65532 nonroot \
 	&& mkdir -p /app/logs \
 	&& chown -R nonroot:nonroot /app
 USER nonroot
-EXPOSE 8081 8091 8111 8131
+EXPOSE 8091 8111 8131
 ENTRYPOINT ["/app/qpub-server"]
