@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	dbMigrateLockKey     = "lock:db:migrate"
+	// Namespaced per service: qpub-backend uses the same Redis and must not share this key.
+	dbMigrateLockKey     = "lock:db:migrate:server"
 	dbMigrateLockTimeout = 5 * time.Minute
 )
 
