@@ -58,3 +58,7 @@ Authenticate with `CONTROL_API_TOKEN` (`Authorization: Bearer …` or `X-Control
 | GET | `/control/v1/tenants/:tenantID/queues` | List queues |
 | GET | `/control/v1/tenants/:tenantID/workers` | List workers |
 | GET | `/control/v1/metrics` | Metrics export hook |
+
+## License
+
+This project is licensed under the [Apache License 2.0](./LICENSE).
