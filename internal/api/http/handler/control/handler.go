@@ -16,6 +16,7 @@ import (
 	domainWorker "github.com/qpubio/qpub-server/internal/domain/queue/worker"
 	"github.com/qpubio/qpub-server/internal/domain/tenant"
 	"github.com/qpubio/qpub-server/internal/shared/id"
+	"github.com/qpubio/qpub-server/internal/shared/pagination"
 
 	"github.com/gin-gonic/gin"
 )
@@ -315,7 +316,8 @@ func (h *Handler) ListQueues(c *gin.Context) {
 		response.BadRequest(c, "invalid tenant id")
 		return
 	}
-	queues, err := h.queueService.List(tenantID)
+	params := pagination.ParseParams(c)
+	queues, total, err := h.queueService.ListPaginated(tenantID, params.Page, params.PerPage)
 	if err != nil {
 		response.InternalError(c, err.Error())
 		return
@@ -329,7 +331,10 @@ func (h *Handler) ListQueues(c *gin.Context) {
 		}
 		out = append(out, dto.ToQueueSummaryDTO(q, counts))
 	}
-	response.OK(c, dto.QueuesResponse{Queues: out})
+	response.OK(c, dto.QueuesResponse{
+		Queues:     out,
+		Pagination: dto.ToPaginationDTO(int(total), params.PerPage, params.Page),
+	})
 }
 
 func (h *Handler) ListWorkers(c *gin.Context) {
@@ -338,12 +343,16 @@ func (h *Handler) ListWorkers(c *gin.Context) {
 		response.BadRequest(c, "invalid tenant id")
 		return
 	}
-	workers, err := h.workerService.ListByProject(tenantID)
+	params := pagination.ParseParams(c)
+	workers, total, err := h.workerService.ListByProjectPaginated(tenantID, params.Page, params.PerPage)
 	if err != nil {
 		response.InternalError(c, err.Error())
 		return
 	}
-	response.OK(c, dto.WorkersResponse{Workers: dto.ToWorkersDTO(workers)})
+	response.OK(c, dto.WorkersResponse{
+		Workers:    dto.ToWorkersDTO(workers),
+		Pagination: dto.ToPaginationDTO(int(total), params.PerPage, params.Page),
+	})
 }
 
 func (h *Handler) GetQueue(c *gin.Context) {
@@ -387,6 +396,9 @@ func (h *Handler) ListJobs(c *gin.Context) {
 		if err != nil || n < 0 {
 			response.BadRequest(c, "invalid limit")
 			return
+		}
+		if n > 100 {
+			n = 100
 		}
 		filter.Limit = n
 	}

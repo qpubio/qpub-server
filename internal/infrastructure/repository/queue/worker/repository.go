@@ -32,8 +32,18 @@ func (r *repository) FindByID(projectID id.Int, workerID id.ULID) (*domainWorker
 	return &w, nil
 }
 
-func (r *repository) ListByProject(projectID id.Int) ([]domainWorker.Worker, error) {
+func (r *repository) ListByProjectPaginated(projectID id.Int, limit, offset int) ([]domainWorker.Worker, int64, error) {
+	var total int64
+	if err := r.db.Model(&domainWorker.Worker{}).
+		Where("project_id = ?", projectID).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
 	var workers []domainWorker.Worker
-	err := r.db.Where("project_id = ?", projectID).Order("last_seen_at DESC").Find(&workers).Error
-	return workers, err
+	err := r.db.Where("project_id = ?", projectID).
+		Order("last_seen_at DESC").
+		Limit(limit).Offset(offset).
+		Find(&workers).Error
+	return workers, total, err
 }

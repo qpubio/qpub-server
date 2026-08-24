@@ -447,6 +447,6 @@ func (m *mockWorkerSvc) Heartbeat(id.Int, id.ULID) (domainWorker.Worker, error) 
 func (m *mockWorkerSvc) Get(id.Int, id.ULID) (domainWorker.Worker, error) {
 	return domainWorker.Worker{}, domainWorker.ErrNotFound
 }
-func (m *mockWorkerSvc) ListByProject(id.Int) ([]domainWorker.Worker, error) {
-	return nil, nil
+func (m *mockWorkerSvc) ListByProjectPaginated(id.Int, int, int) ([]domainWorker.Worker, int64, error) {
+	return nil, 0, nil
 }

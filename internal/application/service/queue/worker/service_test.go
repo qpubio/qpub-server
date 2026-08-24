@@ -47,8 +47,8 @@ func (m *mockWorkerRepo) FindByID(_ id.Int, workerID id.ULID) (*domainWorker.Wor
 	return &cp, nil
 }
 
-func (m *mockWorkerRepo) ListByProject(id.Int) ([]domainWorker.Worker, error) {
-	return nil, nil
+func (m *mockWorkerRepo) ListByProjectPaginated(id.Int, int, int) ([]domainWorker.Worker, int64, error) {
+	return nil, 0, nil
 }
 
 type mockJobRepo struct {

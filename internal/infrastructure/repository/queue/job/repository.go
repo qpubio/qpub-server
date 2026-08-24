@@ -58,6 +58,9 @@ func (r *repository) List(filter domainJob.ListFilter) ([]domainJob.Job, error) 
 	if limit <= 0 {
 		limit = 50
 	}
+	if limit > 100 {
+		limit = 100
+	}
 
 	var jobs []domainJob.Job
 	err := query.Order("created_at DESC").Limit(limit).Offset(filter.Offset).Find(&jobs).Error

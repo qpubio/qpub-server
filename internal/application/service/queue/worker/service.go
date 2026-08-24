@@ -94,6 +94,12 @@ func (s *Service) Get(projectID id.Int, workerID id.ULID) (domainWorker.Worker, 
 	return *w, nil
 }
 
-func (s *Service) ListByProject(projectID id.Int) ([]domainWorker.Worker, error) {
-	return s.repository.ListByProject(projectID)
+func (s *Service) ListByProjectPaginated(projectID id.Int, page, perPage int) ([]domainWorker.Worker, int64, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if perPage <= 0 {
+		perPage = 10
+	}
+	return s.repository.ListByProjectPaginated(projectID, perPage, (page-1)*perPage)
 }

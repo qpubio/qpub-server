@@ -65,8 +65,14 @@ func (s *Service) Get(projectID id.Int, name string) (domainQueue.Queue, error) 
 	return *q, nil
 }
 
-func (s *Service) List(projectID id.Int) ([]domainQueue.Queue, error) {
-	return s.repository.ListByProject(projectID)
+func (s *Service) ListPaginated(projectID id.Int, page, perPage int) ([]domainQueue.Queue, int64, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if perPage <= 0 {
+		perPage = 10
+	}
+	return s.repository.ListByProjectPaginated(projectID, perPage, (page-1)*perPage)
 }
 
 func (s *Service) Ensure(params domainQueue.CreateParams) (domainQueue.Queue, error) {

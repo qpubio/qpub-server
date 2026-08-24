@@ -10,5 +10,5 @@ type Repository interface {
 	Update(queue *Queue) error
 	FindByProjectAndName(projectID id.Int, name string) (*Queue, error)
 	FindByID(id id.Int) (*Queue, error)
-	ListByProject(projectID id.Int) ([]Queue, error)
+	ListByProjectPaginated(projectID id.Int, limit, offset int) ([]Queue, int64, error)
 }

@@ -44,8 +44,18 @@ func (r *repository) FindByID(queueID id.Int) (*domainQueue.Queue, error) {
 	return &q, nil
 }
 
-func (r *repository) ListByProject(projectID id.Int) ([]domainQueue.Queue, error) {
+func (r *repository) ListByProjectPaginated(projectID id.Int, limit, offset int) ([]domainQueue.Queue, int64, error) {
+	var total int64
+	if err := r.db.Model(&domainQueue.Queue{}).
+		Where("project_id = ?", projectID).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
 	var queues []domainQueue.Queue
-	err := r.db.Where("project_id = ?", projectID).Find(&queues).Error
-	return queues, err
+	err := r.db.Where("project_id = ?", projectID).
+		Order("id ASC").
+		Limit(limit).Offset(offset).
+		Find(&queues).Error
+	return queues, total, err
 }

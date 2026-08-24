@@ -47,7 +47,8 @@ type QueueSummaryDTO struct {
 
 // QueuesResponse wraps a list of queues.
 type QueuesResponse struct {
-	Queues []QueueSummaryDTO `json:"queues"`
+	Queues     []QueueSummaryDTO `json:"queues"`
+	Pagination *PaginationDTO    `json:"pagination,omitempty"`
 }
 
 func ToQueueSummaryDTO(q domainQueue.Queue, counts map[domainJob.Status]int64) QueueSummaryDTO {

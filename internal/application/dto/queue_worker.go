@@ -33,7 +33,8 @@ func ToWorkerDTO(w domainWorker.Worker) WorkerDTO {
 
 // WorkersResponse wraps a list of workers.
 type WorkersResponse struct {
-	Workers []WorkerDTO `json:"workers"`
+	Workers    []WorkerDTO   `json:"workers"`
+	Pagination *PaginationDTO `json:"pagination,omitempty"`
 }
 
 func ToWorkersDTO(workers []domainWorker.Worker) []WorkerDTO {

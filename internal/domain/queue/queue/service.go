@@ -7,6 +7,6 @@ type Service interface {
 	Create(params CreateParams) (Queue, error)
 	Update(projectID id.Int, name string, params UpdateParams) (Queue, error)
 	Get(projectID id.Int, name string) (Queue, error)
-	List(projectID id.Int) ([]Queue, error)
+	ListPaginated(projectID id.Int, page, perPage int) ([]Queue, int64, error)
 	Ensure(params CreateParams) (Queue, error)
 }
