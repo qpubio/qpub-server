@@ -37,6 +37,7 @@ func SetupRoutes(router *gin.Engine, cfg *config.Config, h *controlHandler.Handl
 
 		v1.GET("/tenants/:tenantID/queues", h.ListQueues)
 		v1.GET("/tenants/:tenantID/queues/:queueName", h.GetQueue)
+		v1.DELETE("/tenants/:tenantID/queues/:queueName", h.DeleteQueue)
 		v1.GET("/tenants/:tenantID/queues/:queueName/jobs", h.ListJobs)
 		v1.GET("/tenants/:tenantID/queues/:queueName/jobs/counts", h.GetJobCounts)
 		v1.GET("/tenants/:tenantID/queues/:queueName/jobs/:jobId", h.GetJob)

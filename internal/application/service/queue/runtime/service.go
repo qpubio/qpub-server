@@ -111,8 +111,11 @@ func (s *Service) workerLoop(ctx context.Context) {
 
 func (s *Service) processPlatformQueues(ctx context.Context) {
 	for _, def := range s.platformReg.All() {
+		if def.Handler == nil {
+			continue
+		}
 		queueName := platform.QueueName(def.Name)
-		s.processQueue(ctx, platform.PlatformProjectID, string(queueName))
+		s.processQueue(ctx, platform.PlatformProjectID, queueName, domainRuntime.JobHandler(def.Handler))
 	}
 }
 
@@ -120,11 +123,8 @@ func (s *Service) processCustomQueues(ctx context.Context) {
 	// Custom queue workers pull via REST API; runtime handles webhook dispatch only.
 }
 
-func (s *Service) processQueue(ctx context.Context, projectID id.Int, queueName string) {
-	s.mu.RLock()
-	handler, ok := s.handlers[queueName]
-	s.mu.RUnlock()
-	if !ok {
+func (s *Service) processQueue(ctx context.Context, projectID id.Int, queueName string, handler domainRuntime.JobHandler) {
+	if handler == nil {
 		return
 	}
 

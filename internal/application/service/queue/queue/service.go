@@ -42,6 +42,9 @@ func (s *Service) Update(projectID id.Int, name string, params domainQueue.Updat
 		}
 		return domainQueue.Queue{}, err
 	}
+	if !current.Status.IsActive() {
+		return domainQueue.Queue{}, domainQueue.ErrDeleting
+	}
 
 	if err := current.Update(params); err != nil {
 		return domainQueue.Queue{}, err
@@ -78,10 +81,28 @@ func (s *Service) ListPaginated(projectID id.Int, page, perPage int) ([]domainQu
 func (s *Service) Ensure(params domainQueue.CreateParams) (domainQueue.Queue, error) {
 	existing, err := s.repository.FindByProjectAndName(params.ProjectID, params.Name)
 	if err == nil {
+		if !existing.Status.IsActive() {
+			return domainQueue.Queue{}, domainQueue.ErrDeleting
+		}
 		return *existing, nil
 	}
 	if err != gorm.ErrRecordNotFound {
 		return domainQueue.Queue{}, err
 	}
 	return s.Create(params)
+}
+
+func (s *Service) BeginDelete(projectID id.Int, name string) error {
+	q, err := s.repository.FindByProjectAndName(projectID, name)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return domainQueue.ErrNotFound
+		}
+		return err
+	}
+	if q.Status == domainQueue.StatusDeleting {
+		return nil
+	}
+	q.Status = domainQueue.StatusDeleting
+	return s.repository.Update(q)
 }

@@ -6,7 +6,9 @@ import (
 	projectLog "github.com/qpubio/qpub-server/internal/domain/project/log"
 	logBroadcast "github.com/qpubio/qpub-server/internal/domain/project/log/broadcast"
 	domainJob "github.com/qpubio/qpub-server/internal/domain/queue/job"
+	"github.com/qpubio/qpub-server/internal/domain/queue/lifecycle"
 	"github.com/qpubio/qpub-server/internal/infrastructure/logger"
+	"github.com/qpubio/qpub-server/internal/shared/clock"
 	"github.com/qpubio/qpub-server/internal/shared/id"
 	"github.com/qpubio/qpub-server/internal/shared/type/log"
 
@@ -17,18 +19,28 @@ type Service struct {
 	repository     domainJob.Repository
 	logger         logger.Service
 	logBroadcaster logBroadcast.Service
+	guard          *lifecycle.Guard
 }
 
 func NewService(
 	repository domainJob.Repository,
 	logger logger.Service,
 	logBroadcaster logBroadcast.Service,
+	guard *lifecycle.Guard,
 ) domainJob.Service {
 	return &Service{
 		repository:     repository,
 		logger:         logger,
 		logBroadcaster: logBroadcaster,
+		guard:          guard,
 	}
+}
+
+func (s *Service) assertQueueWritable(projectID id.Int, queueName string) error {
+	if s.guard == nil {
+		return nil
+	}
+	return s.guard.AssertQueueWritable(projectID, queueName)
 }
 
 func (s *Service) Get(projectID id.Int, queueName string, jobID id.ULID) (domainJob.Job, error) {
@@ -68,6 +80,9 @@ func (s *Service) CountByStatus(projectID id.Int, queueName string) (map[domainJ
 }
 
 func (s *Service) Cancel(projectID id.Int, queueName string, jobID id.ULID) (domainJob.Job, error) {
+	if err := s.assertQueueWritable(projectID, queueName); err != nil {
+		return domainJob.Job{}, err
+	}
 	j, err := s.repository.FindByID(projectID, queueName, jobID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -89,6 +104,9 @@ func (s *Service) Cancel(projectID id.Int, queueName string, jobID id.ULID) (dom
 }
 
 func (s *Service) Retry(projectID id.Int, queueName string, jobID id.ULID) (domainJob.Job, error) {
+	if err := s.assertQueueWritable(projectID, queueName); err != nil {
+		return domainJob.Job{}, err
+	}
 	j, err := s.repository.FindByID(projectID, queueName, jobID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -101,12 +119,7 @@ func (s *Service) Retry(projectID id.Int, queueName string, jobID id.ULID) (doma
 		return domainJob.Job{}, domainJob.ErrInvalidTransition
 	}
 
-	j.Status = domainJob.StatusPending
-	j.ScheduleAt = nil
-	j.ErrorMessage = ""
-	j.StartedAt = nil
-	j.CompletedAt = nil
-	j.WorkerID = ""
+	j.MarkRetryFromControl()
 
 	if err := s.repository.Update(j); err != nil {
 		return domainJob.Job{}, err
@@ -127,6 +140,9 @@ func (s *Service) Retry(projectID id.Int, queueName string, jobID id.ULID) (doma
 }
 
 func (s *Service) UpdateProgress(projectID id.Int, queueName string, jobID id.ULID, metadata json.RawMessage) (domainJob.Job, error) {
+	if err := s.assertQueueWritable(projectID, queueName); err != nil {
+		return domainJob.Job{}, err
+	}
 	j, err := s.repository.FindByID(projectID, queueName, jobID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -135,9 +151,12 @@ func (s *Service) UpdateProgress(projectID id.Int, queueName string, jobID id.UL
 		return domainJob.Job{}, err
 	}
 
-	j.Metadata = metadata
-	if err := s.repository.Update(j); err != nil {
+	if j.IsTerminal() {
+		return domainJob.Job{}, domainJob.ErrTerminalJob
+	}
+	if err := s.repository.UpdateMetadata(projectID, queueName, jobID, metadata, clock.Now()); err != nil {
 		return domainJob.Job{}, err
 	}
+	j.Metadata = metadata
 	return *j, nil
 }

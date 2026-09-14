@@ -43,7 +43,7 @@ func (s *Service) Ensure(tenantID id.Int) (tenant.Tenant, error) {
 	}
 
 	now := time.Now().UTC()
-	t := tenant.Tenant{ID: tenantID, CreatedAt: now, UpdatedAt: now}
+	t := tenant.Tenant{ID: tenantID, Status: tenant.StatusActive, CreatedAt: now, UpdatedAt: now}
 	if s.repo != nil {
 		if err := s.repo.UpsertTenant(t); err != nil {
 			return tenant.Tenant{}, err
@@ -52,6 +52,35 @@ func (s *Service) Ensure(tenantID id.Int) (tenant.Tenant, error) {
 	s.tenants[tenantID] = t
 	s.logger.Info(log.App, "Ensured messaging tenant id=%d", tenantID)
 	return t, nil
+}
+
+func (s *Service) BeginDelete(tenantID id.Int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if t, ok := s.tenants[tenantID]; ok && t.Status == tenant.StatusDeleting {
+		return nil
+	}
+
+	if s.repo != nil {
+		t, err := s.repo.FindTenant(tenantID)
+		if err != nil {
+			return err
+		}
+		if t == nil {
+			return fmt.Errorf("tenant not found")
+		}
+		if t.Status == tenant.StatusDeleting {
+			return nil
+		}
+		t.Status = tenant.StatusDeleting
+		t.UpdatedAt = time.Now().UTC()
+		if err := s.repo.UpdateTenant(*t); err != nil {
+			return err
+		}
+		s.tenants[tenantID] = *t
+	}
+	return nil
 }
 
 func (s *Service) Delete(tenantID id.Int) error {

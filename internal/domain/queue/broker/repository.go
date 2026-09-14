@@ -23,5 +23,6 @@ type Repository interface {
 	Ack(ctx context.Context, subject string, sequence uint64) error
 	Nack(ctx context.Context, subject string, sequence uint64, delay time.Duration) error
 	PublishDLQ(ctx context.Context, subject string, data []byte) error
+	DeleteStream(subject string) error
 	Shutdown(ctx context.Context) error
 }

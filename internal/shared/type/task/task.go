@@ -17,4 +17,7 @@ const (
 	TaskProjectUsageGenerateHourly TaskName = "project:usage:generate:hourly"
 	TaskProjectUsageCleanupDaily   TaskName = "project:usage:cleanup:daily"
 	TaskInstanceCleanupMinutely    TaskName = "instance:cleanup:minutely"
+	TaskQueueWorkerCleanupMinutely TaskName = "queue:worker:cleanup:minutely"
+	TaskQueueJobCleanupDaily       TaskName = "queue:job:cleanup:daily"
+	TaskQueueCascadeMinutely       TaskName = "queue:cascade:minutely"
 )

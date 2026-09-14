@@ -9,4 +9,5 @@ type Service interface {
 	Get(projectID id.Int, name string) (Queue, error)
 	ListPaginated(projectID id.Int, page, perPage int) ([]Queue, int64, error)
 	Ensure(params CreateParams) (Queue, error)
+	BeginDelete(projectID id.Int, name string) error
 }

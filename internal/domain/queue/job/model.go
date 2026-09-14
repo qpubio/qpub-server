@@ -35,6 +35,7 @@ type Job struct {
 	ScheduleAt     *time.Time      `gorm:"index:idx_job_schedule"`
 	StartedAt      *time.Time
 	CompletedAt    *time.Time
+	TerminalAt     *time.Time      `gorm:"index:idx_job_status_terminal_at"`
 	WorkerID       string
 	BrokerSequence uint64
 	ErrorMessage   string          `gorm:"type:text"`
@@ -45,6 +46,38 @@ type Job struct {
 
 func (Job) TableName() string {
 	return "jobs"
+}
+
+// IsTerminal reports whether the job is in a terminal lifecycle state.
+func (j *Job) IsTerminal() bool {
+	switch j.Status {
+	case StatusCompleted, StatusCancelled, StatusFailed, StatusDLQ:
+		return true
+	default:
+		return false
+	}
+}
+
+func (j *Job) setTerminalAt(now time.Time) {
+	j.TerminalAt = &now
+}
+
+func (j *Job) clearTerminalAt() {
+	j.TerminalAt = nil
+}
+
+// ValidateTerminalInvariant checks terminal_at consistency with status.
+func (j *Job) ValidateTerminalInvariant() error {
+	if j.IsTerminal() {
+		if j.TerminalAt == nil {
+			return ErrInvalidTerminalState
+		}
+		return nil
+	}
+	if j.TerminalAt != nil {
+		return ErrInvalidTerminalState
+	}
+	return nil
 }
 
 // CreateParams holds parameters for creating a job.
@@ -103,6 +136,7 @@ func (j *Job) MarkRunning(workerID string) {
 	j.WorkerID = workerID
 	j.Attempt++
 	j.StartedAt = &now
+	j.clearTerminalAt()
 	j.UpdatedAt = now
 }
 
@@ -112,6 +146,7 @@ func (j *Job) MarkCompleted(result json.RawMessage) {
 	j.Status = StatusCompleted
 	j.Result = result
 	j.CompletedAt = &now
+	j.setTerminalAt(now)
 	j.UpdatedAt = now
 }
 
@@ -120,6 +155,7 @@ func (j *Job) MarkFailed(reason string) {
 	now := clock.Now()
 	j.Status = StatusFailed
 	j.ErrorMessage = reason
+	j.setTerminalAt(now)
 	j.UpdatedAt = now
 }
 
@@ -131,6 +167,7 @@ func (j *Job) MarkRetry(delay time.Duration) {
 	j.ScheduleAt = &scheduleAt
 	j.StartedAt = nil
 	j.WorkerID = ""
+	j.clearTerminalAt()
 	j.UpdatedAt = now
 }
 
@@ -139,6 +176,7 @@ func (j *Job) MarkDLQ(reason string) {
 	now := clock.Now()
 	j.Status = StatusDLQ
 	j.ErrorMessage = reason
+	j.setTerminalAt(now)
 	j.UpdatedAt = now
 }
 
@@ -146,6 +184,7 @@ func (j *Job) MarkDLQ(reason string) {
 func (j *Job) MarkCancelled() {
 	now := clock.Now()
 	j.Status = StatusCancelled
+	j.setTerminalAt(now)
 	j.UpdatedAt = now
 }
 
@@ -155,6 +194,7 @@ func (j *Job) MarkReclaimed() {
 	j.Status = StatusPending
 	j.WorkerID = ""
 	j.StartedAt = nil
+	j.clearTerminalAt()
 	j.UpdatedAt = now
 }
 
@@ -179,5 +219,19 @@ func (j *Job) IsClaimable(now time.Time) bool {
 func (j *Job) MarkPendingForSchedule() {
 	now := clock.Now()
 	j.Status = StatusPending
+	j.clearTerminalAt()
+	j.UpdatedAt = now
+}
+
+// MarkRetryFromControl resets a terminal job for manual retry.
+func (j *Job) MarkRetryFromControl() {
+	now := clock.Now()
+	j.Status = StatusPending
+	j.ScheduleAt = nil
+	j.ErrorMessage = ""
+	j.StartedAt = nil
+	j.CompletedAt = nil
+	j.WorkerID = ""
+	j.clearTerminalAt()
 	j.UpdatedAt = now
 }

@@ -25,8 +25,24 @@ func (r *repository) UpsertTenant(t tenant.Tenant) error {
 	}).Create(&t).Error
 }
 
+func (r *repository) UpdateTenant(t tenant.Tenant) error {
+	return r.db.Save(&t).Error
+}
+
 func (r *repository) DeleteTenant(tenantID id.Int) error {
 	return r.db.Where("id = ?", tenantID).Delete(&tenant.Tenant{}).Error
+}
+
+func (r *repository) ListDeleting(limit int) ([]tenant.Tenant, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	var tenants []tenant.Tenant
+	err := r.db.Where("status = ?", tenant.StatusDeleting).
+		Order("updated_at ASC").
+		Limit(limit).
+		Find(&tenants).Error
+	return tenants, err
 }
 
 func (r *repository) FindTenant(tenantID id.Int) (*tenant.Tenant, error) {

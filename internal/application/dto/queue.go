@@ -11,6 +11,7 @@ import (
 // QueueDTO is the REST/control representation of a queue config (snake_case JSON).
 type QueueDTO struct {
 	Name              string          `json:"name"`
+	Status            string          `json:"status"`
 	ExecutionProfile  string          `json:"execution_profile"`
 	VisibilityTimeout string          `json:"visibility_timeout"`
 	MaxAttempts       int             `json:"max_attempts"`
@@ -26,6 +27,7 @@ type QueueDTO struct {
 func ToQueueDTO(q domainQueue.Queue) QueueDTO {
 	return QueueDTO{
 		Name:              q.Name,
+		Status:            string(q.Status),
 		ExecutionProfile:  string(q.ExecutionProfile),
 		VisibilityTimeout: q.VisibilityTimeout.String(),
 		MaxAttempts:       q.MaxAttempts,

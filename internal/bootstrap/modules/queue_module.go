@@ -6,8 +6,10 @@ import (
 	"time"
 
 	queueBackpressureApp "github.com/qpubio/qpub-server/internal/application/service/queue/backpressure"
+	queueCleanupApp "github.com/qpubio/qpub-server/internal/application/service/queue/cleanup"
 	"github.com/qpubio/qpub-server/internal/application/service/queue/dispatch/webhook"
 	queueJobApp "github.com/qpubio/qpub-server/internal/application/service/queue/job"
+	queueMaintenanceApp "github.com/qpubio/qpub-server/internal/application/service/queue/maintenance"
 	"github.com/qpubio/qpub-server/internal/application/service/queue/platform"
 	queueApp "github.com/qpubio/qpub-server/internal/application/service/queue/queue"
 	queueRouterApp "github.com/qpubio/qpub-server/internal/application/service/queue/router"
@@ -16,15 +18,20 @@ import (
 	queueTelemetryApp "github.com/qpubio/qpub-server/internal/application/service/queue/telemetry"
 	queueWorkerApp "github.com/qpubio/qpub-server/internal/application/service/queue/worker"
 	"github.com/qpubio/qpub-server/internal/bootstrap/container"
+	"github.com/qpubio/qpub-server/internal/config"
+	"github.com/qpubio/qpub-server/internal/domain/apikey"
 	"github.com/qpubio/qpub-server/internal/domain/messaging/publication"
 	msgTelemetry "github.com/qpubio/qpub-server/internal/domain/messaging/telemetry"
 	logBroadcast "github.com/qpubio/qpub-server/internal/domain/project/log/broadcast"
+	domainCleanup "github.com/qpubio/qpub-server/internal/domain/queue/cleanup"
 	domainJob "github.com/qpubio/qpub-server/internal/domain/queue/job"
+	"github.com/qpubio/qpub-server/internal/domain/queue/lifecycle"
 	domainQueue "github.com/qpubio/qpub-server/internal/domain/queue/queue"
 	domainRouter "github.com/qpubio/qpub-server/internal/domain/queue/router"
 	domainRuntime "github.com/qpubio/qpub-server/internal/domain/queue/runtime"
 	domainTelemetry "github.com/qpubio/qpub-server/internal/domain/queue/telemetry"
 	domainWorker "github.com/qpubio/qpub-server/internal/domain/queue/worker"
+	"github.com/qpubio/qpub-server/internal/domain/tenant"
 	"github.com/qpubio/qpub-server/internal/infrastructure/logger"
 	"github.com/qpubio/qpub-server/internal/infrastructure/nats"
 	"github.com/qpubio/qpub-server/internal/infrastructure/redis"
@@ -146,7 +153,11 @@ func (m *QueueModule) Register(c *container.Container) error {
 		if err != nil {
 			return nil, err
 		}
-		return queueJobApp.NewService(repo, logger, broadcaster), nil
+		guard, err := container.GetTyped[*lifecycle.Guard](c)
+		if err != nil {
+			return nil, err
+		}
+		return queueJobApp.NewService(repo, logger, broadcaster, guard), nil
 	})
 
 	c.Register(reflect.TypeOf((*domainWorker.Service)(nil)).Elem(), func(c *container.Container) (interface{}, error) {
@@ -166,7 +177,80 @@ func (m *QueueModule) Register(c *container.Container) error {
 		if err != nil {
 			return nil, err
 		}
-		return queueWorkerApp.NewService(repo, jobRepository, logger, broadcaster), nil
+		guard, err := container.GetTyped[*lifecycle.Guard](c)
+		if err != nil {
+			return nil, err
+		}
+		return queueWorkerApp.NewService(repo, jobRepository, logger, broadcaster, guard), nil
+	})
+
+	c.Register(reflect.TypeOf((*lifecycle.Guard)(nil)), func(c *container.Container) (interface{}, error) {
+		tenantRepository, err := container.GetTyped[tenant.Repository](c)
+		if err != nil {
+			return nil, err
+		}
+		queueRepository, err := container.GetTyped[domainQueue.Repository](c)
+		if err != nil {
+			return nil, err
+		}
+		return lifecycle.NewGuard(tenantRepository, queueRepository), nil
+	})
+
+	c.Register(reflect.TypeOf((*domainCleanup.Service)(nil)).Elem(), func(c *container.Container) (interface{}, error) {
+		cfg, err := container.GetTyped[*config.Config](c)
+		if err != nil {
+			return nil, err
+		}
+		jobRepository, err := container.GetTyped[domainJob.Repository](c)
+		if err != nil {
+			return nil, err
+		}
+		queueRepository, err := container.GetTyped[domainQueue.Repository](c)
+		if err != nil {
+			return nil, err
+		}
+		workerRepository, err := container.GetTyped[domainWorker.Repository](c)
+		if err != nil {
+			return nil, err
+		}
+		tenantRepository, err := container.GetTyped[tenant.Repository](c)
+		if err != nil {
+			return nil, err
+		}
+		natsService, err := container.GetTyped[nats.Service](c)
+		if err != nil {
+			return nil, err
+		}
+		logger, err := container.GetTyped[logger.Service](c)
+		if err != nil {
+			return nil, err
+		}
+		broker, err := brokerRepo.NewRepository(natsService, logger)
+		if err != nil {
+			return nil, err
+		}
+		apiKeyService, err := container.GetTyped[apikey.Service](c)
+		if err != nil {
+			return nil, err
+		}
+		return queueCleanupApp.NewService(
+			jobRepository,
+			queueRepository,
+			workerRepository,
+			tenantRepository,
+			broker,
+			apiKeyService,
+			cfg.Infrastructure.Queue,
+			logger,
+		), nil
+	})
+
+	c.Register(reflect.TypeOf((*queueMaintenanceApp.Service)(nil)), func(c *container.Container) (interface{}, error) {
+		cleanupService, err := container.GetTyped[domainCleanup.Service](c)
+		if err != nil {
+			return nil, err
+		}
+		return queueMaintenanceApp.NewService(cleanupService), nil
 	})
 
 	c.Register(reflect.TypeOf((*domainRouter.Service)(nil)).Elem(), func(c *container.Container) (interface{}, error) {
@@ -215,6 +299,10 @@ func (m *QueueModule) Register(c *container.Container) error {
 		if err != nil {
 			return nil, err
 		}
+		guard, err := container.GetTyped[*lifecycle.Guard](c)
+		if err != nil {
+			return nil, err
+		}
 		return queueRouterApp.NewService(
 			jobRepository,
 			queueRepository,
@@ -226,12 +314,29 @@ func (m *QueueModule) Register(c *container.Container) error {
 			workerService,
 			instanceID,
 			queueService,
+			guard,
 			logger,
 		), nil
 	})
 
 	c.Register(reflect.TypeOf((*platform.Registry)(nil)), func(c *container.Container) (interface{}, error) {
-		return platform.NewRegistry(), nil
+		reg := platform.NewRegistry()
+		cleanupService, err := container.GetTyped[domainCleanup.Service](c)
+		if err != nil {
+			return nil, err
+		}
+		maintenanceService, err := container.GetTyped[*queueMaintenanceApp.Service](c)
+		if err != nil {
+			return nil, err
+		}
+		logger, err := container.GetTyped[logger.Service](c)
+		if err != nil {
+			return nil, err
+		}
+		if err := platform.RegisterCleanupTasks(reg, cleanupService, maintenanceService, logger); err != nil {
+			return nil, err
+		}
+		return reg, nil
 	})
 
 	c.Register(reflect.TypeOf((*webhook.Service)(nil)), func(c *container.Container) (interface{}, error) {

@@ -20,6 +20,14 @@ type Queue struct {
 		MaxAttempts       int           `env:"QUEUE_RETRY_LIMIT" envDefault:"25"`
 		Retention         time.Duration `env:"QUEUE_RETENTION" envDefault:"168h"`
 	}
+
+	Cleanup struct {
+		BatchSize            int           `env:"QUEUE_CLEANUP_BATCH_SIZE" envDefault:"1000"`
+		WorkerStaleDisplay   time.Duration `env:"QUEUE_WORKER_STALE_DISPLAY" envDefault:"90s"`
+		WorkerStaleDelete    time.Duration `env:"QUEUE_WORKER_STALE_DELETE" envDefault:"168h"`
+		JobSuccessRetention  time.Duration `env:"QUEUE_JOB_SUCCESS_RETENTION" envDefault:"168h"`
+		JobFailureRetention  time.Duration `env:"QUEUE_JOB_FAILURE_RETENTION" envDefault:"2160h"`
+	}
 }
 
 func NewQueue() (*Queue, error) {

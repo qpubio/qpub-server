@@ -196,11 +196,13 @@ func (s *Service) enqueuePlatformTask(def platform.TaskDefinition) {
 	ctx := context.Background()
 	queueName := platform.QueueName(def.Name)
 	payload, _ := json.Marshal(map[string]string{"task": string(def.Name)})
+	idem := platform.IdempotencyKey(def.Name, def.IdempotencyBucket, clock.Now())
 
 	_, job, err := s.router.Enqueue(ctx, domainJob.EnqueueRequest{
-		ProjectID: platform.PlatformProjectID,
-		QueueName: queueName,
-		Payload:   payload,
+		ProjectID:      platform.PlatformProjectID,
+		QueueName:      queueName,
+		Payload:        payload,
+		IdempotencyKey: idem,
 	})
 	if err != nil {
 		s.logger.Error(log.Queue, "Failed to enqueue platform task task=%s err=%v", def.Name, err)
@@ -262,6 +264,3 @@ func (s *Service) EnqueueNow(ctx context.Context, taskName taskType.TaskName) er
 	s.enqueuePlatformTask(def)
 	return nil
 }
-
-// noop import guard
-var _ = clock.Now

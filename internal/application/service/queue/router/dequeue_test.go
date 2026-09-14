@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -108,6 +109,20 @@ func (m *mockJobRepo) ClaimPending(projectID id.Int, queueName, workerID string,
 	}
 	m.pending = m.pending[n:]
 	return claimed, nil
+}
+
+func (m *mockJobRepo) UpdateMetadata(id.Int, string, id.ULID, json.RawMessage, time.Time) error {
+	return nil
+}
+func (m *mockJobRepo) CountByQueue(id.Int, string) (int64, error)       { return 0, nil }
+func (m *mockJobRepo) CountActiveByQueue(id.Int, string) (int64, error) { return 0, nil }
+func (m *mockJobRepo) PurgeTerminalBefore([]domainJob.Status, time.Time, int) (int64, error) {
+	return 0, nil
+}
+func (m *mockJobRepo) DeleteByQueue(id.Int, string, int) (int64, error)  { return 0, nil }
+func (m *mockJobRepo) DeleteByProject(id.Int, int) (int64, error)        { return 0, nil }
+func (m *mockJobRepo) ForceCancelActiveByQueue(id.Int, string, time.Time) (int64, error) {
+	return 0, nil
 }
 
 func (m *mockJobRepo) ExtendLease(projectID id.Int, workerID string, now time.Time) (int64, error) {

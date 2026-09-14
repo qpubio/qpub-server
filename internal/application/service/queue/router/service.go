@@ -16,6 +16,7 @@ import (
 	domainJob "github.com/qpubio/qpub-server/internal/domain/queue/job"
 	domainQueue "github.com/qpubio/qpub-server/internal/domain/queue/queue"
 	"github.com/qpubio/qpub-server/internal/domain/queue/receipt"
+	"github.com/qpubio/qpub-server/internal/domain/queue/lifecycle"
 	domainRouter "github.com/qpubio/qpub-server/internal/domain/queue/router"
 	queueTelemetry "github.com/qpubio/qpub-server/internal/domain/queue/telemetry"
 	domainWorker "github.com/qpubio/qpub-server/internal/domain/queue/worker"
@@ -46,6 +47,7 @@ type Service struct {
 	instanceID     id.ULID
 	logger         logger.Service
 	queueService   domainQueue.Service
+	guard          *lifecycle.Guard
 }
 
 func NewService(
@@ -59,6 +61,7 @@ func NewService(
 	workerSvc domainWorker.Service,
 	instanceID id.ULID,
 	queueService domainQueue.Service,
+	guard *lifecycle.Guard,
 	logger logger.Service,
 ) domainRouter.Service {
 	return &Service{
@@ -72,11 +75,22 @@ func NewService(
 		workerSvc:      workerSvc,
 		instanceID:     instanceID,
 		queueService:   queueService,
+		guard:          guard,
 		logger:         logger,
 	}
 }
 
+func (s *Service) assertQueueWritable(projectID id.Int, queueName string) error {
+	if s.guard == nil {
+		return nil
+	}
+	return s.guard.AssertQueueWritable(projectID, queueName)
+}
+
 func (s *Service) Enqueue(ctx context.Context, req domainJob.EnqueueRequest) (*receipt.Receipt, *domainJob.Job, error) {
+	if err := s.assertQueueWritable(req.ProjectID, req.QueueName); err != nil {
+		return nil, nil, err
+	}
 	allowed, err := s.gatekeeper.AllowEnqueue(req.ProjectID)
 	if err != nil {
 		return nil, nil, err
@@ -172,6 +186,9 @@ func (s *Service) Enqueue(ctx context.Context, req domainJob.EnqueueRequest) (*r
 }
 
 func (s *Service) Dequeue(ctx context.Context, req domainJob.DequeueRequest) ([]domainJob.Job, error) {
+	if err := s.assertQueueWritable(req.ProjectID, req.QueueName); err != nil {
+		return nil, err
+	}
 	allowed, err := s.gatekeeper.AllowDequeue(req.ProjectID)
 	if err != nil {
 		return nil, err
@@ -259,6 +276,9 @@ func (s *Service) Dequeue(ctx context.Context, req domainJob.DequeueRequest) ([]
 }
 
 func (s *Service) Ack(ctx context.Context, req domainJob.AckRequest) (*receipt.Receipt, error) {
+	if err := s.assertQueueWritable(req.ProjectID, req.QueueName); err != nil {
+		return nil, err
+	}
 	j, err := s.jobRepo.FindByID(req.ProjectID, req.QueueName, req.JobID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -311,6 +331,9 @@ func (s *Service) Ack(ctx context.Context, req domainJob.AckRequest) (*receipt.R
 }
 
 func (s *Service) Nack(ctx context.Context, req domainJob.NackRequest) (*receipt.Receipt, error) {
+	if err := s.assertQueueWritable(req.ProjectID, req.QueueName); err != nil {
+		return nil, err
+	}
 	j, err := s.jobRepo.FindByID(req.ProjectID, req.QueueName, req.JobID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -413,6 +436,9 @@ func (s *Service) Nack(ctx context.Context, req domainJob.NackRequest) (*receipt
 }
 
 func (s *Service) Cancel(ctx context.Context, projectID id.Int, queueName string, jobID id.ULID) (*receipt.Receipt, *domainJob.Job, error) {
+	if err := s.assertQueueWritable(projectID, queueName); err != nil {
+		return nil, nil, err
+	}
 	j, err := s.jobRepo.FindByID(projectID, queueName, jobID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

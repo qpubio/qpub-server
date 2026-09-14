@@ -18,6 +18,7 @@ import (
 	"github.com/qpubio/qpub-server/internal/domain/messaging/publication"
 	"github.com/qpubio/qpub-server/internal/domain/messaging/subscription"
 	logBroadcast "github.com/qpubio/qpub-server/internal/domain/project/log/broadcast"
+	domainCleanup "github.com/qpubio/qpub-server/internal/domain/queue/cleanup"
 	domainJob "github.com/qpubio/qpub-server/internal/domain/queue/job"
 	domainQueue "github.com/qpubio/qpub-server/internal/domain/queue/queue"
 	domainRouter "github.com/qpubio/qpub-server/internal/domain/queue/router"
@@ -108,13 +109,21 @@ func (a *App) setupHandlers() error {
 	a.handlers.QueueConfigHandler = queueConfigHandler.NewHandler(a.logger, queueService, a.permission)
 	a.handlers.QueueJobHandler = queueJobHandler.NewHandler(a.logger, queueRouter, queueJobService, queueService, a.permission)
 	a.handlers.QueuePullHandler = queuePullHandler.NewHandler(a.logger, queueRouter, a.permission)
-	a.handlers.QueueWorkerHandler = queueWorkerHandler.NewHandler(a.logger, queueWorkerService)
+	a.handlers.QueueWorkerHandler = queueWorkerHandler.NewHandler(
+		a.logger,
+		queueWorkerService,
+		a.config.Infrastructure.Queue.Cleanup.WorkerStaleDisplay,
+	)
 
 	tenantService, err := container.GetTyped[tenant.Service](a.container)
 	if err != nil {
 		return err
 	}
 	apiKeyService, err := container.GetTyped[apikey.Service](a.container)
+	if err != nil {
+		return err
+	}
+	cleanupService, err := container.GetTyped[domainCleanup.Service](a.container)
 	if err != nil {
 		return err
 	}
@@ -125,6 +134,8 @@ func (a *App) setupHandlers() error {
 		queueJobService,
 		queueRouter,
 		queueWorkerService,
+		cleanupService,
+		a.config.Infrastructure.Queue,
 	)
 
 	a.logger.Info(log.App, "HTTP handlers setup completed")

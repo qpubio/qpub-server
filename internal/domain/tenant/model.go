@@ -7,7 +7,8 @@ import (
 
 // Tenant is the messaging/queue isolation unit.
 type Tenant struct {
-	ID        id.Int `gorm:"primarykey"`
+	ID        id.Int          `gorm:"primarykey"`
+	Status    LifecycleStatus `gorm:"type:string;not null;default:active"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

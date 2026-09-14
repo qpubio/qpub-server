@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"time"
+
 	"github.com/qpubio/qpub-server/internal/api/response"
 	appDTO "github.com/qpubio/qpub-server/internal/application/dto"
 	domainWorker "github.com/qpubio/qpub-server/internal/domain/queue/worker"
@@ -11,12 +13,13 @@ import (
 )
 
 type Handler struct {
-	logger  logger.Service
-	service domainWorker.Service
+	logger     logger.Service
+	service    domainWorker.Service
+	staleAfter time.Duration
 }
 
-func NewHandler(logger logger.Service, service domainWorker.Service) *Handler {
-	return &Handler{logger: logger, service: service}
+func NewHandler(logger logger.Service, service domainWorker.Service, staleAfter time.Duration) *Handler {
+	return &Handler{logger: logger, service: service, staleAfter: staleAfter}
 }
 
 type registerRequest struct {
@@ -51,7 +54,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	response.Created(c, appDTO.ToWorkerDTO(w))
+	response.Created(c, appDTO.ToWorkerDTO(w, h.staleAfter))
 }
 
 func (h *Handler) Heartbeat(c *gin.Context) {
@@ -73,5 +76,5 @@ func (h *Handler) Heartbeat(c *gin.Context) {
 		return
 	}
 
-	response.OK(c, appDTO.ToWorkerDTO(w))
+	response.OK(c, appDTO.ToWorkerDTO(w, h.staleAfter))
 }

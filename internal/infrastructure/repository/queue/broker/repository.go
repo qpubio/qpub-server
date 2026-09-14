@@ -158,6 +158,21 @@ func (r *repository) PublishDLQ(ctx context.Context, subject string, data []byte
 	return r.EnsureStream(subject, 30*24*time.Hour)
 }
 
+func (r *repository) DeleteStream(subject string) error {
+	streamName := streamNameForSubject(subject)
+	if err := r.js.DeleteStream(streamName); err != nil {
+		if err == natsgo.ErrStreamNotFound {
+			return nil
+		}
+		return fmt.Errorf("failed to delete stream %s: %w", streamName, err)
+	}
+	r.mu.Lock()
+	delete(r.streams, subject)
+	r.mu.Unlock()
+	r.logger.Info(log.Queue, "Deleted JetStream stream stream=%s", streamName)
+	return nil
+}
+
 func (r *repository) Shutdown(ctx context.Context) error {
 	return nil
 }

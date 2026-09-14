@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 	"time"
@@ -50,6 +51,12 @@ func (m *mockWorkerRepo) FindByID(_ id.Int, workerID id.ULID) (*domainWorker.Wor
 func (m *mockWorkerRepo) ListByProjectPaginated(id.Int, int, int) ([]domainWorker.Worker, int64, error) {
 	return nil, 0, nil
 }
+func (m *mockWorkerRepo) Delete(id.Int, id.ULID) error                          { return nil }
+func (m *mockWorkerRepo) ListByProject(id.Int) ([]domainWorker.Worker, error)    { return nil, nil }
+func (m *mockWorkerRepo) ListStale(time.Time, int) ([]domainWorker.Worker, error) {
+	return nil, nil
+}
+func (m *mockWorkerRepo) HasRunningJobs(id.Int, string) (bool, error) { return false, nil }
 
 type mockJobRepo struct {
 	running []domainJob.Job
@@ -95,6 +102,20 @@ func (m *mockJobRepo) ReclaimExpired(now time.Time, limit int, defaultVisibility
 	m.running = kept
 	return n, nil
 }
+func (m *mockJobRepo) UpdateMetadata(id.Int, string, id.ULID, json.RawMessage, time.Time) error {
+	return nil
+}
+func (m *mockJobRepo) CountByQueue(id.Int, string) (int64, error)       { return 0, nil }
+func (m *mockJobRepo) CountActiveByQueue(id.Int, string) (int64, error) { return 0, nil }
+func (m *mockJobRepo) PurgeTerminalBefore([]domainJob.Status, time.Time, int) (int64, error) {
+	return 0, nil
+}
+func (m *mockJobRepo) DeleteByQueue(id.Int, string, int) (int64, error)  { return 0, nil }
+func (m *mockJobRepo) DeleteByProject(id.Int, int) (int64, error)        { return 0, nil }
+func (m *mockJobRepo) ForceCancelActiveByQueue(id.Int, string, time.Time) (int64, error) {
+	return 0, nil
+}
+
 func (m *mockJobRepo) ExtendLease(_ id.Int, workerID string, now time.Time) (int64, error) {
 	var n int64
 	for i := range m.running {
@@ -140,7 +161,7 @@ func TestHeartbeat_ExtendsLease(t *testing.T) {
 	job.StartedAt = &oldStart
 
 	jobs := &mockJobRepo{running: []domainJob.Job{*job}}
-	svc := NewService(workerRepo, jobs, nopLogger{}, nil)
+	svc := NewService(workerRepo, jobs, nopLogger{}, nil, nil)
 
 	before := clock.Now()
 	_, err = svc.Heartbeat(1, w.ID)
@@ -208,7 +229,7 @@ func TestHeartbeat_WithLeaseKeepsJobFromReclaim(t *testing.T) {
 	job.StartedAt = &oldStart
 
 	jobs := &mockJobRepo{running: []domainJob.Job{*job}}
-	svc := NewService(workerRepo, jobs, nopLogger{}, nil)
+	svc := NewService(workerRepo, jobs, nopLogger{}, nil, nil)
 
 	if _, err := svc.Heartbeat(1, w.ID); err != nil {
 		t.Fatalf("heartbeat: %v", err)

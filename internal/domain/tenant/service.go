@@ -8,6 +8,7 @@ import (
 type Service interface {
 	Ensure(tenantID id.Int) (Tenant, error)
 	Delete(tenantID id.Int) error
+	BeginDelete(tenantID id.Int) error
 	Get(tenantID id.Int) (Tenant, error)
 
 	SetLimits(tenantID id.Int, inboundPerSecond, outboundPerSecond int64) (Limits, error)
@@ -17,8 +18,10 @@ type Service interface {
 // Repository persists tenants and limits.
 type Repository interface {
 	UpsertTenant(t Tenant) error
+	UpdateTenant(t Tenant) error
 	DeleteTenant(tenantID id.Int) error
 	FindTenant(tenantID id.Int) (*Tenant, error)
+	ListDeleting(limit int) ([]Tenant, error)
 
 	UpsertLimits(l Limits) error
 	FindLimits(tenantID id.Int) (*Limits, error)

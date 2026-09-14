@@ -59,3 +59,25 @@ func (r *repository) ListByProjectPaginated(projectID id.Int, limit, offset int)
 		Find(&queues).Error
 	return queues, total, err
 }
+
+func (r *repository) Delete(projectID id.Int, name string) error {
+	return r.db.Where("project_id = ? AND name = ?", projectID, name).Delete(&domainQueue.Queue{}).Error
+}
+
+func (r *repository) ListByProject(projectID id.Int) ([]domainQueue.Queue, error) {
+	var queues []domainQueue.Queue
+	err := r.db.Where("project_id = ?", projectID).Find(&queues).Error
+	return queues, err
+}
+
+func (r *repository) ListDeleting(limit int) ([]domainQueue.Queue, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	var queues []domainQueue.Queue
+	err := r.db.Where("status = ?", domainQueue.StatusDeleting).
+		Order("updated_at ASC").
+		Limit(limit).
+		Find(&queues).Error
+	return queues, err
+}

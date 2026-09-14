@@ -15,17 +15,23 @@ type WorkerDTO struct {
 	Name       string    `json:"name"`
 	Queues     []string  `json:"queues"`
 	LastSeenAt time.Time `json:"last_seen_at"`
+	Stale      bool      `json:"stale"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
-func ToWorkerDTO(w domainWorker.Worker) WorkerDTO {
+func ToWorkerDTO(w domainWorker.Worker, staleAfter time.Duration) WorkerDTO {
+	stale := false
+	if staleAfter > 0 {
+		stale = time.Since(w.LastSeenAt) > staleAfter
+	}
 	return WorkerDTO{
 		ID:         w.ID,
 		ProjectID:  w.ProjectID,
 		Name:       w.Name,
 		Queues:     decodeWorkerQueues(w.Queues),
 		LastSeenAt: w.LastSeenAt,
+		Stale:      stale,
 		CreatedAt:  w.CreatedAt,
 		UpdatedAt:  w.UpdatedAt,
 	}
@@ -37,10 +43,10 @@ type WorkersResponse struct {
 	Pagination *PaginationDTO `json:"pagination,omitempty"`
 }
 
-func ToWorkersDTO(workers []domainWorker.Worker) []WorkerDTO {
+func ToWorkersDTO(workers []domainWorker.Worker, staleAfter time.Duration) []WorkerDTO {
 	out := make([]WorkerDTO, len(workers))
 	for i, w := range workers {
-		out[i] = ToWorkerDTO(w)
+		out[i] = ToWorkerDTO(w, staleAfter)
 	}
 	return out
 }

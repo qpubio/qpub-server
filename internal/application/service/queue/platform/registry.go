@@ -15,12 +15,23 @@ const PlatformProjectID id.Int = 0
 // Handler processes a platform job payload.
 type Handler func(ctx context.Context, payload []byte) error
 
+// IdempotencyBucket chooses the enqueue idempotency key time bucket.
+type IdempotencyBucket int
+
+const (
+	BucketMinute IdempotencyBucket = iota
+	BucketTenMinutes
+	BucketHour
+	BucketDay
+)
+
 // TaskDefinition describes a platform scheduled task.
 type TaskDefinition struct {
-	Name        taskType.TaskName
-	Schedule    string
-	LockTimeout time.Duration
-	Handler     Handler
+	Name              taskType.TaskName
+	Schedule          string
+	LockTimeout       time.Duration
+	IdempotencyBucket IdempotencyBucket
+	Handler           Handler
 }
 
 // Registry holds platform task definitions.
@@ -67,4 +78,20 @@ func (r *Registry) Get(name taskType.TaskName) (TaskDefinition, bool) {
 // QueueName returns the platform queue name for a task.
 func QueueName(taskName taskType.TaskName) string {
 	return fmt.Sprintf("_platform.%s", taskName)
+}
+
+// IdempotencyKey builds a per-tick enqueue key for the task.
+func IdempotencyKey(name taskType.TaskName, bucket IdempotencyBucket, now time.Time) string {
+	now = now.UTC()
+	switch bucket {
+	case BucketTenMinutes:
+		t := now.Truncate(10 * time.Minute)
+		return fmt.Sprintf("%s:%s", name, t.Format("200601021504"))
+	case BucketHour:
+		return fmt.Sprintf("%s:%s", name, now.Format("2006010215"))
+	case BucketDay:
+		return fmt.Sprintf("%s:%s", name, now.Format("20060102"))
+	default:
+		return fmt.Sprintf("%s:%s", name, now.Format("200601021504"))
+	}
 }

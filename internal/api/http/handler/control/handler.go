@@ -12,9 +12,12 @@ import (
 	apiKeyDomain "github.com/qpubio/qpub-server/internal/domain/apikey"
 	domainJob "github.com/qpubio/qpub-server/internal/domain/queue/job"
 	domainQueue "github.com/qpubio/qpub-server/internal/domain/queue/queue"
+	domainCleanup "github.com/qpubio/qpub-server/internal/domain/queue/cleanup"
+	"github.com/qpubio/qpub-server/internal/domain/queue/lifecycle"
 	domainRouter "github.com/qpubio/qpub-server/internal/domain/queue/router"
 	domainWorker "github.com/qpubio/qpub-server/internal/domain/queue/worker"
 	"github.com/qpubio/qpub-server/internal/domain/tenant"
+	"github.com/qpubio/qpub-server/internal/config/infrastructure"
 	"github.com/qpubio/qpub-server/internal/shared/id"
 	"github.com/qpubio/qpub-server/internal/shared/pagination"
 
@@ -29,6 +32,8 @@ type Handler struct {
 	jobService    domainJob.Service
 	router        domainRouter.Service
 	workerService domainWorker.Service
+	cleanup       domainCleanup.Service
+	queueCfg      infrastructure.Queue
 }
 
 func NewHandler(
@@ -38,6 +43,8 @@ func NewHandler(
 	jobService domainJob.Service,
 	router domainRouter.Service,
 	workerService domainWorker.Service,
+	cleanup domainCleanup.Service,
+	queueCfg infrastructure.Queue,
 ) *Handler {
 	return &Handler{
 		tenantService: tenantService,
@@ -46,6 +53,8 @@ func NewHandler(
 		jobService:    jobService,
 		router:        router,
 		workerService: workerService,
+		cleanup:       cleanup,
+		queueCfg:      queueCfg,
 	}
 }
 
@@ -92,16 +101,15 @@ func (h *Handler) DeleteTenant(c *gin.Context) {
 		response.BadRequest(c, "invalid tenant id")
 		return
 	}
-	// Delete keys scoped to tenant first
-	keys, _ := h.apiKeyService.ListByProjectID(tenantID)
-	for _, k := range keys {
-		_ = h.apiKeyService.Delete(k.ID)
+	if _, err := h.tenantService.Get(tenantID); err != nil {
+		response.NotFound(c, "tenant not found")
+		return
 	}
-	if err := h.tenantService.Delete(tenantID); err != nil {
+	if err := h.cleanup.RequestDeleteTenant(c.Request.Context(), tenantID); err != nil {
 		response.InternalError(c, err.Error())
 		return
 	}
-	c.Status(http.StatusNoContent)
+	c.JSON(http.StatusAccepted, gin.H{"status": "deleting", "tenant_id": tenantID})
 }
 
 func (h *Handler) GetTenant(c *gin.Context) {
@@ -115,7 +123,40 @@ func (h *Handler) GetTenant(c *gin.Context) {
 		response.NotFound(c, "tenant not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"id": t.ID, "created_at": t.CreatedAt})
+	c.JSON(http.StatusOK, gin.H{"id": t.ID, "status": t.Status, "created_at": t.CreatedAt})
+}
+
+func (h *Handler) DeleteQueue(c *gin.Context) {
+	tenantID, err := parseTenantID(c)
+	if err != nil {
+		response.BadRequest(c, "invalid tenant id")
+		return
+	}
+	queueName := c.Param("queueName")
+	force := c.Query("force") == "true"
+
+	completed, err := h.cleanup.RequestDeleteQueue(c.Request.Context(), tenantID, queueName, force)
+	if err != nil {
+		if errors.Is(err, domainQueue.ErrNotFound) {
+			response.NotFound(c, "queue not found")
+			return
+		}
+		if errors.Is(err, domainQueue.ErrActiveJobs) {
+			response.BadRequest(c, "queue has active jobs; use force=true to delete")
+			return
+		}
+		if errors.Is(err, lifecycle.ErrTenantDeleting) || errors.Is(err, lifecycle.ErrQueueDeleting) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		response.InternalError(c, err.Error())
+		return
+	}
+	if completed {
+		c.Status(http.StatusNoContent)
+		return
+	}
+	c.JSON(http.StatusAccepted, gin.H{"status": "deleting", "queue_name": queueName})
 }
 
 func (h *Handler) SetLimits(c *gin.Context) {
@@ -350,7 +391,7 @@ func (h *Handler) ListWorkers(c *gin.Context) {
 		return
 	}
 	response.OK(c, dto.WorkersResponse{
-		Workers:    dto.ToWorkersDTO(workers),
+		Workers:    dto.ToWorkersDTO(workers, h.queueCfg.Cleanup.WorkerStaleDisplay),
 		Pagination: dto.ToPaginationDTO(int(total), params.PerPage, params.Page),
 	})
 }

@@ -99,6 +99,40 @@ func TestJobDueScheduledIsClaimable(t *testing.T) {
 	}
 }
 
+func TestJobTerminalAtInvariant(t *testing.T) {
+	j, _ := Enqueue(CreateParams{
+		ProjectID: id.Int(1),
+		QueueName: "terminal-test",
+	})
+	if j.TerminalAt != nil {
+		t.Fatal("new job should not have terminal_at")
+	}
+	if err := j.ValidateTerminalInvariant(); err != nil {
+		t.Fatalf("pending job invariant: %v", err)
+	}
+
+	j.MarkRunning("w1")
+	if j.TerminalAt != nil {
+		t.Fatal("running job should not have terminal_at")
+	}
+
+	j.MarkCompleted([]byte(`{}`))
+	if j.TerminalAt == nil {
+		t.Fatal("completed job should set terminal_at")
+	}
+	if err := j.ValidateTerminalInvariant(); err != nil {
+		t.Fatalf("completed job invariant: %v", err)
+	}
+
+	j.MarkRetryFromControl()
+	if j.TerminalAt != nil {
+		t.Fatal("retry should clear terminal_at")
+	}
+	if err := j.ValidateTerminalInvariant(); err != nil {
+		t.Fatalf("retried job invariant: %v", err)
+	}
+}
+
 func TestJobMarkReclaimed(t *testing.T) {
 	j, _ := Enqueue(CreateParams{
 		ProjectID: id.Int(1),

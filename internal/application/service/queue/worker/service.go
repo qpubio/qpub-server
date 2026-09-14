@@ -4,6 +4,7 @@ import (
 	projectLog "github.com/qpubio/qpub-server/internal/domain/project/log"
 	logBroadcast "github.com/qpubio/qpub-server/internal/domain/project/log/broadcast"
 	domainJob "github.com/qpubio/qpub-server/internal/domain/queue/job"
+	"github.com/qpubio/qpub-server/internal/domain/queue/lifecycle"
 	domainWorker "github.com/qpubio/qpub-server/internal/domain/queue/worker"
 	"github.com/qpubio/qpub-server/internal/infrastructure/logger"
 	"github.com/qpubio/qpub-server/internal/shared/clock"
@@ -18,6 +19,7 @@ type Service struct {
 	jobRepo        domainJob.Repository
 	logger         logger.Service
 	logBroadcaster logBroadcast.Service
+	guard          *lifecycle.Guard
 }
 
 func NewService(
@@ -25,16 +27,28 @@ func NewService(
 	jobRepo domainJob.Repository,
 	logger logger.Service,
 	logBroadcaster logBroadcast.Service,
+	guard *lifecycle.Guard,
 ) domainWorker.Service {
 	return &Service{
 		repository:     repository,
 		jobRepo:        jobRepo,
 		logger:         logger,
 		logBroadcaster: logBroadcaster,
+		guard:          guard,
 	}
 }
 
 func (s *Service) Register(params domainWorker.CreateParams) (domainWorker.Worker, error) {
+	if s.guard != nil {
+		if err := s.guard.AssertTenantWritable(params.ProjectID); err != nil {
+			return domainWorker.Worker{}, err
+		}
+		for _, q := range params.Queues {
+			if err := s.guard.AssertQueueWritable(params.ProjectID, q); err != nil {
+				return domainWorker.Worker{}, err
+			}
+		}
+	}
 	w, err := domainWorker.Create(params)
 	if err != nil {
 		return domainWorker.Worker{}, err

@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"time"
+
 	domainWorker "github.com/qpubio/qpub-server/internal/domain/queue/worker"
 	"github.com/qpubio/qpub-server/internal/shared/id"
 
@@ -46,4 +48,34 @@ func (r *repository) ListByProjectPaginated(projectID id.Int, limit, offset int)
 		Limit(limit).Offset(offset).
 		Find(&workers).Error
 	return workers, total, err
+}
+
+func (r *repository) Delete(projectID id.Int, workerID id.ULID) error {
+	return r.db.Where("project_id = ? AND id = ?", projectID, workerID).Delete(&domainWorker.Worker{}).Error
+}
+
+func (r *repository) ListByProject(projectID id.Int) ([]domainWorker.Worker, error) {
+	var workers []domainWorker.Worker
+	err := r.db.Where("project_id = ?", projectID).Find(&workers).Error
+	return workers, err
+}
+
+func (r *repository) ListStale(before time.Time, limit int) ([]domainWorker.Worker, error) {
+	if limit <= 0 {
+		limit = 500
+	}
+	var workers []domainWorker.Worker
+	err := r.db.Where("last_seen_at < ?", before).
+		Order("last_seen_at ASC").
+		Limit(limit).
+		Find(&workers).Error
+	return workers, err
+}
+
+func (r *repository) HasRunningJobs(projectID id.Int, workerID string) (bool, error) {
+	var count int64
+	err := r.db.Table("jobs").
+		Where("project_id = ? AND worker_id = ? AND status = ?", projectID, workerID, "running").
+		Count(&count).Error
+	return count > 0, err
 }

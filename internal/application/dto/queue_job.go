@@ -21,6 +21,7 @@ type JobDTO struct {
 	ScheduleAt     *time.Time       `json:"schedule_at,omitempty"`
 	StartedAt      *time.Time       `json:"started_at,omitempty"`
 	CompletedAt    *time.Time       `json:"completed_at,omitempty"`
+	TerminalAt     *time.Time       `json:"terminal_at,omitempty"`
 	WorkerID       string           `json:"worker_id,omitempty"`
 	ErrorMessage   string           `json:"error_message,omitempty"`
 	Metadata       json.RawMessage  `json:"metadata,omitempty"`
@@ -75,6 +76,7 @@ func ToJobDTO(j domainJob.Job) JobDTO {
 		ScheduleAt:     j.ScheduleAt,
 		StartedAt:      j.StartedAt,
 		CompletedAt:    j.CompletedAt,
+		TerminalAt:     j.TerminalAt,
 		WorkerID:       j.WorkerID,
 		ErrorMessage:   j.ErrorMessage,
 		Metadata:       j.Metadata,

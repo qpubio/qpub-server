@@ -20,6 +20,7 @@ type Queue struct {
 	ID                 id.Int              `gorm:"primarykey;autoincrement"`
 	ProjectID          id.Int              `gorm:"not null;index:idx_queue_project_name,unique"`
 	Name               string              `gorm:"not null;index:idx_queue_project_name,unique"`
+	Status             LifecycleStatus     `gorm:"type:string;not null;default:active"`
 	ExecutionProfile   execution.Profile   `gorm:"type:string;not null;default:external"`
 	VisibilityTimeout  time.Duration       `gorm:"not null;default:30000000000"` // 30s in nanoseconds stored as bigint
 	MaxAttempts        int                 `gorm:"not null;default:25"`
@@ -97,6 +98,7 @@ func Create(params CreateParams) (*Queue, error) {
 	return &Queue{
 		ProjectID:         params.ProjectID,
 		Name:              params.Name,
+		Status:            StatusActive,
 		ExecutionProfile:  profile,
 		VisibilityTimeout: visibility,
 		MaxAttempts:       maxAttempts,
