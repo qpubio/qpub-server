@@ -5,6 +5,25 @@ All notable changes to QPub Server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.0] - 2026-09-14
+
+### Features
+
+- **Queue lifecycle & cleanup** — tenant/queue `deleting` status, async cascade delete, `jobs.terminal_at`, terminal job purge
+- **Control API** — `DELETE /control/v1/tenants/:id` (async `202`), `DELETE .../queues/:name` with `?force=true`
+- **Platform maintenance tasks** — minutely stale-worker purge + cascade resume; daily terminal job cleanup on `_platform.*` queues
+- **DTOs** — queue `status`, job `terminal_at`, worker `stale` flag
+
+### Fixed
+
+- Lifecycle guard treats missing queue row as writable (fixes worker register / enqueue 500 when queue is lazy-created)
+- Platform runtime executes registry handlers (fixes growing `_platform.*` pending job backlog)
+- Platform cron enqueue uses per-minute idempotency keys
+
+### Changed
+
+- New optional env vars with defaults: `QUEUE_CLEANUP_BATCH_SIZE`, `QUEUE_WORKER_STALE_DISPLAY`, `QUEUE_WORKER_STALE_DELETE`, `QUEUE_JOB_SUCCESS_RETENTION`, `QUEUE_JOB_FAILURE_RETENTION`
+
 ## [v1.1.0] - 2026-09-04
 
 ### Features
