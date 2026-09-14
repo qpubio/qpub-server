@@ -5,6 +5,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const terminalAtBackfillBatchSize = 5000
+
 func init() {
 	registerMigration(&gormigrate.Migration{
 		ID: "2026080102_queue_cleanup",
@@ -24,12 +26,7 @@ func init() {
 			`).Error; err != nil {
 				return err
 			}
-			if err := tx.Exec(`
-				UPDATE jobs
-				SET terminal_at = COALESCE(completed_at, updated_at)
-				WHERE status IN ('completed', 'cancelled', 'failed', 'dlq')
-				  AND terminal_at IS NULL
-			`).Error; err != nil {
+			if err := backfillJobTerminalAt(tx); err != nil {
 				return err
 			}
 			return tx.Exec(`
@@ -51,4 +48,29 @@ func init() {
 			return tx.Exec(`ALTER TABLE tenants DROP COLUMN IF EXISTS status`).Error
 		},
 	})
+}
+
+// backfillJobTerminalAt updates terminal_at in batches to stay under CockroachDB
+// statement timeouts on large jobs tables.
+func backfillJobTerminalAt(tx *gorm.DB) error {
+	for {
+		result := tx.Exec(`
+UPDATE jobs AS j
+SET terminal_at = COALESCE(j.completed_at, j.updated_at)
+FROM (
+	SELECT id
+	FROM jobs
+	WHERE status IN ('completed', 'cancelled', 'failed', 'dlq')
+		AND terminal_at IS NULL
+	LIMIT ?
+) AS batch
+WHERE j.id = batch.id
+`, terminalAtBackfillBatchSize)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return nil
+		}
+	}
 }
