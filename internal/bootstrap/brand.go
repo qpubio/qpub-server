@@ -24,7 +24,7 @@ func (a *App) setupBrand() error {
 	printBrandLogo()
 	fmt.Println("")
 	fmt.Println(brandBlue + "  QPub Server:" + brandReset + " " + brandCyan + "Open-Source Data Plane" + brandReset)
-	fmt.Println("  • Messaging (Pub/Sub)")
+	fmt.Println("  • Channels (Pub/Sub)")
 	fmt.Println("  • Queues")
 	fmt.Println("  • Control / REST / WebSocket")
 	currentYear := time.Now().UTC().Year()
