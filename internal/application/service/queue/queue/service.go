@@ -1,6 +1,8 @@
 package queue
 
 import (
+	"errors"
+
 	domainQueue "github.com/qpubio/qpub-server/internal/domain/queue/queue"
 	"github.com/qpubio/qpub-server/internal/infrastructure/logger"
 	"github.com/qpubio/qpub-server/internal/shared/id"
@@ -28,6 +30,9 @@ func (s *Service) Create(params domainQueue.CreateParams) (domainQueue.Queue, er
 
 	_, err = s.repository.Create(q)
 	if err != nil {
+		if errors.Is(err, domainQueue.ErrAlreadyExists) {
+			return s.Get(params.ProjectID, params.Name)
+		}
 		return domainQueue.Queue{}, err
 	}
 

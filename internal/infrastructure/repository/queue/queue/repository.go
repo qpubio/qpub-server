@@ -1,9 +1,13 @@
 package queue
 
 import (
+	"errors"
+	"strings"
+
 	domainQueue "github.com/qpubio/qpub-server/internal/domain/queue/queue"
 	"github.com/qpubio/qpub-server/internal/shared/id"
 
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -17,9 +21,20 @@ func NewRepository(db *gorm.DB) domainQueue.Repository {
 
 func (r *repository) Create(queue *domainQueue.Queue) (id.Int, error) {
 	if err := r.db.Create(queue).Error; err != nil {
+		if isDuplicateKey(err) {
+			return 0, domainQueue.ErrAlreadyExists
+		}
 		return 0, err
 	}
 	return queue.ID, nil
+}
+
+func isDuplicateKey(err error) bool {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+		return true
+	}
+	return strings.Contains(err.Error(), "duplicate key")
 }
 
 func (r *repository) Update(queue *domainQueue.Queue) error {
@@ -27,12 +42,15 @@ func (r *repository) Update(queue *domainQueue.Queue) error {
 }
 
 func (r *repository) FindByProjectAndName(projectID id.Int, name string) (*domainQueue.Queue, error) {
-	var q domainQueue.Queue
-	err := r.db.Where("project_id = ? AND name = ?", projectID, name).First(&q).Error
+	var queues []domainQueue.Queue
+	err := r.db.Where("project_id = ? AND name = ?", projectID, name).Limit(1).Find(&queues).Error
 	if err != nil {
 		return nil, err
 	}
-	return &q, nil
+	if len(queues) == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &queues[0], nil
 }
 
 func (r *repository) FindByID(queueID id.Int) (*domainQueue.Queue, error) {

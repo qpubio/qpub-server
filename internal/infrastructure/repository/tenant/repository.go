@@ -46,15 +46,18 @@ func (r *repository) ListDeleting(limit int) ([]tenant.Tenant, error) {
 }
 
 func (r *repository) FindTenant(tenantID id.Int) (*tenant.Tenant, error) {
-	var t tenant.Tenant
-	err := r.db.Where("id = ?", tenantID).First(&t).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if tenantID <= 0 {
 		return nil, nil
 	}
+	var tenants []tenant.Tenant
+	err := r.db.Where("id = ?", tenantID).Limit(1).Find(&tenants).Error
 	if err != nil {
 		return nil, err
 	}
-	return &t, nil
+	if len(tenants) == 0 {
+		return nil, nil
+	}
+	return &tenants[0], nil
 }
 
 func (r *repository) UpsertLimits(l tenant.Limits) error {

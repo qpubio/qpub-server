@@ -29,7 +29,7 @@ func NewGuard(tenantRepo tenant.Repository, queueRepo domainQueue.Repository) *G
 }
 
 func (g *Guard) AssertTenantWritable(projectID id.Int) error {
-	if g.tenantRepo == nil {
+	if projectID <= 0 || g.tenantRepo == nil {
 		return nil
 	}
 	t, err := g.tenantRepo.FindTenant(projectID)

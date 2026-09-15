@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -181,6 +182,9 @@ func (s *Service) OnBrokerMessage(ctx context.Context, env *envelope.Envelope) e
 
 	subs, err := s.subscriptionRepo.GetAllLocalForChannel(fullChannelName)
 	if err != nil {
+		if errors.Is(err, subscription.ErrChannelNotFound) {
+			return nil
+		}
 		s.logger.Error(log.MessagingPublication, "Failed to get subscribers channel=%s error=%v",
 			fullChannelName, err)
 		return err
