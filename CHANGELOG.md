@@ -5,6 +5,14 @@ All notable changes to QPub Server will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.2] - 2026-09-15
+
+### Fixed
+
+- Silence `_logs` fan-out errors when no WebSocket subscribers are connected
+- Skip platform tenant/queue DB lookups for sentinel IDs (project/tenant 0) to reduce GORM noise
+- Make queue PUT/create idempotent on duplicate key (`idx_queue_project_name`) for concurrent bootstrap
+
 ## [v1.2.1] - 2026-09-14
 
 ### Fixed
